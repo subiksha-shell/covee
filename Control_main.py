@@ -160,14 +160,14 @@ def control_output(data, *args):
 dmuObj.addRx(control_output,"active_power_dict")
 dmuObj.addRx(control_output,"reactive_power_dict")
 
-reactive_power = [0.0]*grid_data["nb"]
-active_power = [0.0]*grid_data["nb"]
 
 active_nodes = list(np.array(np.matrix(ppc["gen"])[:,0]).flatten())
 active_nodes = active_nodes[1:len(active_nodes)]
-pv_nodes = [float(i)-1 for i in active_nodes]
-pv_nodes_old = pv_nodes    
-control = Quadratic_Control_PV(grid_data, pv_nodes)
+active_nodes_old = active_nodes    
+reactive_power = [0.0]*len(active_nodes)
+active_power = [0.0]*len(active_nodes)
+print("active_nodes", active_nodes)
+control = Quadratic_Control_PV(grid_data, active_nodes)
 control.initialize_control()
 
 try:
@@ -182,24 +182,40 @@ try:
         pv_input_value = dmuObj.getDataSubset("pv_input_dict")
         pv_input_meas = pv_input_value.get("pv_input_measurements", None)
 
+        active_nodes = dmuObj.getDataSubset("simDict","active_nodes")
+        if not active_nodes:
+            active_nodes = active_nodes_old
+        else:
+            active_nodes = list(active_nodes.values())[0]
+
         if voltage_value and pv_input_meas:
             ts = time.time()*1000   # time in milliseconds
             pv_nodes = list(map(lambda x: x.replace('node_',''),list(voltage_meas.keys())))
-            num_pv = len(list(voltage_meas.values()))
             pv_nodes = [float(i)-1 for i in pv_nodes]
 
-            v_gen = list(voltage_meas.values())#[1.07]*len(list(voltage_meas.values()))
-            pv_input = list(pv_input_meas.values())
-            if pv_nodes != pv_nodes_old:
-                control = Quadratic_Control_PV(grid_data, pv_nodes)
+            print("active_nodes", active_nodes)
+            keys = ['node_'+str(int(item+1)) for item in active_nodes]
+            pv_active = (dict(zip(keys, [None]*len(active_nodes)))).keys()
+            num_pv = len(list(pv_active))
+
+            ################### select input only from active nodes ###############################
+            v_gen = {item:voltage_meas[item] for item in pv_active}
+            pv_input = {item:pv_input_meas[item] for item in pv_active}
+
+            v_gen = list(v_gen.values())#[1.07]*len(list(voltage_meas.values()))
+            pv_input = list(pv_input.values())
+            
+            ################### re-initialize if new set of active nodes ###########################
+            if active_nodes != active_nodes_old:
+                control = Quadratic_Control_PV(grid_data, active_nodes)
                 control.initialize_control()
-                pv_nodes_old = pv_nodes 
+                active_nodes_old = active_nodes 
 
-            reactive_power = control.control_(pv_input, reactive_power, active_power, v_gen)
+            [reactive_power, active_power] = control.control_(pv_input, reactive_power, active_power, v_gen)
 
-            active_power = [0.0]*num_pv
+            # active_power = [0.0]*num_pv
             k = 0
-            for key in voltage_meas.keys():
+            for key in pv_active:
                 #updating dictionaries
                 active_power_dict[key] = active_power[k]
                 reactive_power_dict[key] = reactive_power[k]
@@ -209,8 +225,8 @@ try:
             dmuObj.setDataSubset({"active_power":active_power_dict},"active_power_dict")
             dmuObj.setDataSubset({"reactive_power":reactive_power_dict},"reactive_power_dict")
 
-            print("Reactive Power", reactive_power)
-            print("Active Power", active_power)
+            print("Reactive Power", reactive_power_dict)
+            print("Active Power", active_power_dict)
 
         else:
             pass

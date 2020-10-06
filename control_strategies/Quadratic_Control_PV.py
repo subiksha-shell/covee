@@ -12,7 +12,7 @@ class Quadratic_Control_PV():
         self.alpha = [0.0]*len(self.num_pv)
         self.alpha_PV = [0.0]*len(self.num_pv)
 
-    def initialize_control(self):   
+    def initialize_control(self): 
 
         self.control_reactive_power = quadratic_control.Quadratic_Reactive_Power(self.grid_data,self.num_pv)
         self.control_reactive_power.initialize_control()
@@ -43,27 +43,27 @@ class Quadratic_Control_PV():
         # ================================================================================================
         [self.reactive_power, self.mu_min] = self.control_reactive_power.Voltage_Control(PV_list, q_PV, v_gen, self.alpha)
 
-        # # ACTIVE POWER CONTROL PV
-        # # ================================================================================================
-        # self.active_power_PV = self.control_active_power_PV.Voltage_Control(PV_list, active_power_PV, v_gen, self.alpha_PV)
-        # for i in range(len(self.num_pv)):	
-        #     if i == 0:	
-        #         if self.mu_min[i+1] != 0:	
-        #             self.alpha_PV[i] = self.K1*self.lim	
-        #         else:	
-        #             self.active_power_PV[i] = 0.0	
-        #     elif i in range(len(self.num_pv)-1):	
-        #         if self.mu_min[i-1] != 0 or self.mu_min[i+1] != 0:	
-        #             self.alpha_PV[i] = self.K1*self.lim	
-        #         else:	
-        #             self.active_power_PV[i] = 0.0	
-        #     elif i == len(self.num_pv)-1:	
-        #         if self.mu_min[i-1] != 0: 	
-        #             self.alpha_PV[i] = self.K1*self.lim	
-        #         else:	
-        #             self.active_power_PV[i] = 0.0               	
-        #     else:	
-        #         pass
+        # ACTIVE POWER CONTROL PV
+        # ================================================================================================
+        self.active_power_PV = self.control_active_power_PV.Voltage_Control(PV_list, active_power_PV, v_gen, self.alpha_PV)
+        for i in range(len(self.num_pv)):	
+            if i == 0:	
+                if self.mu_min[i+1] != 0:	
+                    self.alpha_PV[i] = self.K1*self.lim	
+                else:	
+                    self.active_power_PV[i] = 0.0	
+            elif i in range(len(self.num_pv)-1):	
+                if self.mu_min[i-1] != 0 or self.mu_min[i+1] != 0:	
+                    self.alpha_PV[i] = self.K1*self.lim	
+                else:	
+                    self.active_power_PV[i] = 0.0	
+            elif i == len(self.num_pv)-1:	
+                if self.mu_min[i-1] != 0: 	
+                    self.alpha_PV[i] = self.K1*self.lim	
+                else:	
+                    self.active_power_PV[i] = 0.0               	
+            else:	
+                pass
 
         # if activate_battery == "true":
         #     # COORDINATED ACTIVE POWER CONTROL (BATT)
@@ -80,7 +80,7 @@ class Quadratic_Control_PV():
         #     pass
 
 
-        return self.reactive_power
+        return self.reactive_power, self.active_power_PV
 
 
         
