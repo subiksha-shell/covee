@@ -64,7 +64,7 @@ class Quadratic_Reactive_Power:
         self.gamma = 1/(2*np.linalg.norm(self.G))
 
 
-    def Voltage_Control(self, pv_production, reactive_power, v_gen, alpha):
+    def Voltage_Control(self, pv_production, reactive_power, v_gen, alpha): 
         self.pvproduction = pv_production
         #self.q = reactive_power
         self.v_gen = v_gen
