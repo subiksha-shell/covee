@@ -21,4 +21,5 @@ powerflow/powerflow
 pv_centralized/covee
 venv_ext
 covee
+*.csv
 
