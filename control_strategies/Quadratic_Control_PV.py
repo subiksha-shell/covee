@@ -65,21 +65,6 @@ class Quadratic_Control_PV():
             else:	
                 pass
 
-        # if activate_battery == "true":
-        #     # COORDINATED ACTIVE POWER CONTROL (BATT)
-        #     # ==========================================================================================================================================
-        #     [self.active_power_battery_list, self.active_power_battery, self.xi_min]  = self.control_active_power_batt.Voltage_Control(k, 
-        #                                                                                         PV_list, self.active_power_battery, v_tot.tolist(), self.alpha_P)  
-            
-        #     for i in range(len(self.num_pv)):
-        #         if self.mu_min[i] !=0 and i != 0:
-        #             self.alpha_P[i] = self.K1*self.lim
-        #         else:
-        #             self.alpha_P[i] = 0.0001   
-        # else:
-        #     pass
-
-
         return self.reactive_power, self.active_power_PV
 
 
