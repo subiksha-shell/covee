@@ -95,8 +95,8 @@ class algorithms:
         delta_t = self.data[7]
 
         for i in range(ng):
-            lamda_max[i] = max(lamda_max[i]-alpha[i]*(-v[i]+VMAX[i]),0)
-            lamda_min[i] = max(lamda_min[i]-alpha[i]*(v[i]-VMIN[i]),0)
+            lamda_max[i] = max(lamda_max[i]*delta_t-alpha[i]*(-v[i]+VMAX[i]),0)
+            lamda_min[i] = max(lamda_min[i]*delta_t-alpha[i]*(v[i]-VMIN[i]),0)
 
         return lamda_max, lamda_min
 
@@ -139,8 +139,8 @@ class algorithms:
 
         for i in range(len(mu_min)):
             for j in range(K):
-                mu_min[i] = np.amax((mu_min[i]+gamma*(QMIN[i]-qhat_pre[i]),0))
-                mu_max[i] = np.amax((mu_max[i]+gamma*(-QMAX[i]+qhat_pre[i]),0))
+                mu_min[i] = np.amax((mu_min[i]*delta_t+gamma*(QMIN[i]-qhat_pre[i]),0))
+                mu_max[i] = np.amax((mu_max[i]*delta_t+gamma*(-QMAX[i]+qhat_pre[i]),0))
                 mu_min_tot = np.hstack([mu_min_old[0:i],mu_min[i],mu_min_old[(i+1):len(mu_min_old)]])
                 mu_max_tot = np.hstack([mu_max_old[0:i],mu_max[i],mu_max_old[(i+1):len(mu_max_old)]])
                 qhat_pre[i] = (np.array((np.matrix(np.imag(X))*np.matrix(G))[i,:]*np.transpose(np.matrix(lamda_min-lamda_max))).flatten()

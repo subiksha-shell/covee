@@ -40,7 +40,7 @@ class Quadratic_Reactive_Power:
 
         # Control Parameters
         # ==============================================================
-        self.K = 10   # iterations of the voltage control
+        self.K = 40   # iterations of the voltage control
 
         self.alpha = [0.3]* int(len(self.c))  # this value is not the one used. It is calculated in Quadratic Control
         self.lamda_max = [0.0]* int(len(self.c))
@@ -83,11 +83,11 @@ class Quadratic_Reactive_Power:
 
         ############# REACTIVE POWER CONTROL ###############################  
         lan_multi = algorithms(lamda_max=self.lamda_max,lamda_mín=self.lamda_min,alpha=self.alpha,v=self.v_gen, VMAX=self.VMAX,
-                            VMIN=self.VMIN, ng=int(len(self.c)),delta_t = 1.0)
+                            VMIN=self.VMIN, ng=int(len(self.c)),delta_t = 0.97)
         self.lamda_max = lan_multi.network_compensation()[0]
         self.lamda_min = lan_multi.network_compensation()[1]
         q_calc = algorithms(lamda_max=self.lamda_max,lamda_mín=self.lamda_min,K=self.K,mu_min=self.mu_min, mu_max=self.mu_max,gamma=self.gamma,
-                            G=self.G,QMIN=self.QMIN,QMAX = self.QMAX,ng=int(len(self.c)),qhat_pre=self.q,delta_t = 1.0, X = self.X)
+                            G=self.G,QMIN=self.QMIN,QMAX = self.QMAX,ng=int(len(self.c)),qhat_pre=self.q,delta_t = 0.97, X = self.X)
         self.q = q_calc.inner_loop()[0]
         self.mu_min = q_calc.inner_loop()[1]
         self.mu_max = q_calc.inner_loop()[2]
