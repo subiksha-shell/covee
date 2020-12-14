@@ -51,7 +51,7 @@ class Quadratic_Active_Power_PV:
 
         # Control Parameters
         # ==============================================================
-        self.K = 40 # iterations of the voltage control
+        self.K = 10 # iterations of the voltage control
 
         self.alpha_p = [1]* int(len(self.c))
         self.lamda_p_max = [0.0]* int(len(self.c))

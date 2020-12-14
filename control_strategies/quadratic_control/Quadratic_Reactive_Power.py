@@ -40,7 +40,7 @@ class Quadratic_Reactive_Power:
 
         # Control Parameters
         # ==============================================================
-        self.K = 40   # iterations of the voltage control
+        self.K = 10   # iterations of the voltage control
 
         self.alpha = [0.3]* int(len(self.c))  # this value is not the one used. It is calculated in Quadratic Control
         self.lamda_max = [0.0]* int(len(self.c))

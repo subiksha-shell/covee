@@ -216,7 +216,10 @@ try:
             [reactive_power, active_power] = control.control_(pv_input, reactive_power, active_power, v_gen)
             active_power_ESS = control_ESS.control_(active_power_ESS, v_ess)
 
-            # active_power = [0.0]*num_pv
+            active_power = [0.0]*num_pv
+            reactive_power = [0.0]*num_pv
+            active_power_ESS = [0.0]*len(active_ESS)
+
             k = 0
             for key in pv_active:
                 #updating dictionaries

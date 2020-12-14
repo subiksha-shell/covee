@@ -84,8 +84,8 @@ class Quadratic_Active_Power_Batt:
         # DEFINE LIM (DYNAMIC)
         # =============================================================
         for i in range(len(self.n_battery)):
-            self.PMIN[i] = -(3.5/10)
-            self.PMAX[i] = (3.5/10)
+            self.PMIN[i] = -(0.8)
+            self.PMAX[i] = (0.8)
 
 
         self.VMAX_BATT = [self.V_MAX2] * int(len(self.n_battery))
