@@ -69,7 +69,8 @@ logging.info("Program Start")
 dmuObj = dmu()
 
 ''' Start mqtt client '''
-mqttObj = mqttClient("mqtt", dmuObj)
+mqtt_url = str(os.getenv('MQTTURL'))
+mqttObj = mqttClient(mqtt_url, dmuObj)
 
 ''' Start http server '''
 httpSrvThread2 = threading.Thread(name='httpSrv',target=httpSrv, args=("0.0.0.0", int(ext_port) ,dmuObj,))
@@ -216,9 +217,9 @@ try:
             [reactive_power, active_power] = control.control_(pv_input, reactive_power, active_power, v_gen)
             active_power_ESS = control_ESS.control_(active_power_ESS, v_ess)
 
-            active_power = [0.0]*num_pv
-            reactive_power = [0.0]*num_pv
-            active_power_ESS = [0.0]*len(active_ESS)
+            # active_power = [0.0]*num_pv
+            # reactive_power = [0.0]*num_pv
+            # active_power_ESS = [0.0]*len(active_ESS)
 
             k = 0
             for key in pv_active:
