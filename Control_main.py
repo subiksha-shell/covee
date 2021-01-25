@@ -145,15 +145,16 @@ active_nodes = active_nodes[1:len(active_nodes)]
 active_nodes_old = active_nodes    
 reactive_power = [0.0]*len(active_nodes)
 active_power = [0.0]*len(active_nodes)
-print("active_nodes", active_nodes)
-control = Quadratic_Control_PV(grid_data, active_nodes)
-control.initialize_control()
-
-active_ESS = sorted(random.sample(active_nodes,10))
+active_ESS = active_nodes
 active_ESS_old = active_ESS
 active_power_ESS = [0.0]*len(active_ESS)
-control_ESS = Quadratic_Control_ESS(grid_data, active_ESS)
-control_ESS.initialize_control()
+print("active_nodes", active_nodes)
+control = Quadratic_Control_PV(grid_data, active_nodes, active_ESS)
+control.initialize_control()
+
+
+# control_ESS = Quadratic_Control_ESS(grid_data, active_ESS)
+# control_ESS.initialize_control()
 
 try:
     while True:
@@ -174,13 +175,14 @@ try:
         if not active_nodes:
             active_nodes = active_nodes_old
         else:
-            active_nodes = list(active_nodes.values())[0]
+            active_nodes = list(active_nodes)
+            print(active_nodes)
 
         active_ESS = dmuObj.getDataSubset("simDict","ESS_nodes")
         if not active_ESS:
             active_ESS = active_ESS_old
         else:
-            active_ESS = list(active_ESS.values())[0]
+            active_ESS = list(active_ESS)
 
         if voltage_value and pv_input_meas:
             ts = time.time()*1000   # time in milliseconds
@@ -202,23 +204,17 @@ try:
             v_ess = list(v_ess.values())
 
             ################### re-initialize if new set of active nodes ###########################
-            if active_nodes != active_nodes_old:
-                control = Quadratic_Control_PV(grid_data, active_nodes)
+            if active_nodes != active_nodes_old or active_ESS != active_ESS_old:
+                control = Quadratic_Control_PV(grid_data, active_nodes, active_ESS)
                 control.initialize_control()
                 active_nodes_old = active_nodes
-            else:
-                pass
-            if active_ESS != active_ESS_old:
-                control_ESS.Quadratic_Control_ESS(grid_data, active_ESS)
-                control_ESS.initialize_control()
                 active_ESS_old = active_ESS
+            
+            [reactive_power, active_power,active_power_ESS] = control.control_(pv_input, reactive_power, active_power, v_gen, active_power_ESS, v_ess)
 
-            [reactive_power, active_power] = control.control_(pv_input, reactive_power, active_power, v_gen)
-            active_power_ESS = control_ESS.control_(active_power_ESS, v_ess)
-
-            active_power = [0.0]*num_pv
-            reactive_power = [0.0]*num_pv
-            active_power_ESS = [0.0]*len(active_ESS)
+            # active_power = [0.0]*num_pv
+            # reactive_power = [0.0]*num_pv
+            # active_power_ESS = [0.0]*len(active_ESS)
 
             k = 0
             for key in pv_active:

@@ -93,11 +93,11 @@ class Quadratic_Active_Power_Batt:
 
         ############# CALCULATE SOC/BATTERY ACTIVE POWER CONTROL ########################################
         lan_multi_p = algorithms_controllable_loads(lamda_max=self.lamda_p_max, lamda_min=self.lamda_p_min, alpha=self.alpha_p, v=self.v_bat,
-                                                    VMAX=self.VMAX_BATT, VMIN=self.VMIN_BATT, n_battery=self.n_battery,delta_t = 0.95)
+                                                    VMAX=self.VMAX_BATT, VMIN=self.VMIN_BATT, n_battery=self.n_battery,delta_t = 0.98)
         self.lamda_p_max = lan_multi_p.network_compensation()[0]
         self.lamda_p_min = lan_multi_p.network_compensation()[1]
         p_calc = algorithms_controllable_loads(lamda=self.lamda_p_max,lamda_min=self.lamda_p_min,K=self.K,xi_min=self.xi_min,xi_max=self.xi_max,gamma=self.gamma_p,
-                                            G_p=self.G_p,PMAX=self.PMAX, PMIN=self.PMIN, n_battery=self.n_battery, phat_pre=self.p_batt,delta_t = 0.95, X = self.X)
+                                            G_p=self.G_p,PMAX=self.PMAX, PMIN=self.PMIN, n_battery=self.n_battery, phat_pre=self.p_batt,delta_t = 0.98, X = self.X)
         self.p_batt = p_calc.inner_loop()[0]
         self.xi_max = p_calc.inner_loop()[1]
         self.xi_min = p_calc.inner_loop()[2]

@@ -21,7 +21,7 @@ class Quadratic_Control_ESS():
 
         # Set the parameters
         # ========================================================================
-        self.K1 = 1.0
+        self.K1 = 1.5
         for i in range(int(len(self.num_ESS))):
             self.alpha_ESS[i] = self.K1*self.lim
     
