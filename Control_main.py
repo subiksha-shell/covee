@@ -16,8 +16,8 @@ from pypower.api import *
 from pypower.ext2int import ext2int
 import random
 
-from control_strategies.Quadratic_Control_PV import Quadratic_Control_PV
-from control_strategies.Quadratic_Control_ESS import Quadratic_Control_ESS
+from control_strategies.Quadratic_Control_Distributed import Quadratic_Control_Distributed
+
 from cases.LV_SOGNO import LV_SOGNO as case
 
 
@@ -149,12 +149,8 @@ active_ESS = active_nodes
 active_ESS_old = active_ESS
 active_power_ESS = [0.0]*len(active_ESS)
 print("active_nodes", active_nodes)
-control = Quadratic_Control_PV(grid_data, active_nodes, active_ESS)
+control = Quadratic_Control_Distributed(grid_data, active_nodes, active_ESS)
 control.initialize_control()
-
-
-# control_ESS = Quadratic_Control_ESS(grid_data, active_ESS)
-# control_ESS.initialize_control()
 
 try:
     while True:
@@ -215,6 +211,8 @@ try:
             # active_power = [0.0]*num_pv
             # reactive_power = [0.0]*num_pv
             # active_power_ESS = [0.0]*len(active_ESS)
+
+            # print(active_power)
 
             k = 0
             for key in pv_active:

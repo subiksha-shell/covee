@@ -30,8 +30,8 @@ class Quadratic_Reactive_Power:
 
         # Problem parameters
         # =============================================================
-        self.V_MIN = 0.95  # undervoltage limit
-        self.V_MAX = 1.05 # overvoltage limit
+        self.V_MIN = 0.9  # undervoltage limit
+        self.V_MAX = 1.1 # overvoltage limit
 
         self.q = [0.0] * int(len(self.c))
 
@@ -62,6 +62,8 @@ class Quadratic_Reactive_Power:
         self.G = param.g_parameter()[0]
         self.X = param.g_parameter()[1]
         self.gamma = 1/(2*np.linalg.norm(self.G))
+
+        return self.q, self.mu_min
 
 
     def Voltage_Control(self, pv_production, reactive_power, v_gen, alpha): 

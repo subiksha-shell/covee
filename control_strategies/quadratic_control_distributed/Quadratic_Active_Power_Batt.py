@@ -36,8 +36,8 @@ class Quadratic_Active_Power_Batt:
         self.V_MIN = 0.9  # undervoltage limit
         self.V_MAX = 1.5 # overvoltage limit
 
-        self.V_MIN2 = 0.95  # undervoltage limit 2
-        self.V_MAX2 = 1.05  # overvoltage limit 2
+        self.V_MIN2 = 0.9  # undervoltage limit 2
+        self.V_MAX2 = 1.1  # overvoltage limit 2
 
         self.PMIN = []
         self.PMAX = []
@@ -73,7 +73,7 @@ class Quadratic_Active_Power_Batt:
         self.X = param_p.g_parameter()[1]
         self.gamma_p = 1/(2*np.linalg.norm(self.G_p))
 
-        return self.p_batt, self.alpha_p
+        return self.p_batt, self.alpha_p, self.xi_min	
 
 
     def Voltage_Control(self, p_batt, v_bat, alpha_P):
@@ -101,12 +101,5 @@ class Quadratic_Active_Power_Batt:
         self.p_batt = p_calc.inner_loop()[0]
         self.xi_max = p_calc.inner_loop()[1]
         self.xi_min = p_calc.inner_loop()[2]
-        # s = int(0.0)
-        # for i in range(int(self.nb) - 1):
-        #     if any(int(t-1)==i for t in self.n_battery):
-        #         self.p_batt_array[i] = self.p_batt[s]
-        #         s = s+1
-        #     else:
-        #         self.p_batt_array[i] = 0.0
 
         return self.p_batt, self.xi_min

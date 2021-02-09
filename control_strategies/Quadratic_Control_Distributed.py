@@ -1,7 +1,7 @@
-import control_strategies.quadratic_control as quadratic_control
+import control_strategies.quadratic_control_distributed as quadratic_control
 import numpy as np
 
-class Quadratic_Control_PV():
+class Quadratic_Control_Distributed():
 
     def __init__(self, grid_data, num_pv, num_ESS):
 
@@ -20,13 +20,13 @@ class Quadratic_Control_PV():
     def initialize_control(self): 
 
         self.control_reactive_power = quadratic_control.Quadratic_Reactive_Power(self.grid_data,self.num_pv)
-        self.control_reactive_power.initialize_control()
+        [self.reactive_power, self.mu_min] = self.control_reactive_power.initialize_control()
 
         self.control_active_power_PV = quadratic_control.Quadratic_Active_Power_PV(self.grid_data,self.num_pv)
         [self.active_power_PV, self.alpha_PV] = self.control_active_power_PV.initialize_control()
 
         self.control_active_power_ESS = quadratic_control.Quadratic_Active_Power_Batt(self.grid_data,self.num_ESS)
-        [self.active_power_ESS, self.alpha_ESS] = self.control_active_power_ESS.initialize_control()
+        [self.active_power_ESS, self.alpha_ESS, self.xi_min] = self.control_active_power_ESS.initialize_control()
 
         iter_calculation = quadratic_control.iteration_calculation(self.grid_data,self.num_pv)
         self.lim = iter_calculation.calculate_alpha()
@@ -62,22 +62,22 @@ class Quadratic_Control_PV():
         self.active_power_PV = self.control_active_power_PV.Voltage_Control(PV_list, active_power_PV, v_gen, self.alpha_PV)
         for i in range(len(self.num_pv)):	
             if i == 0:	
-                if self.mu_min[i+1] != 0:	
+                if self.mu_min[i+1] != 0 and self.xi_min[i+1] !=0:	
                     self.alpha_PV[i] = self.K1*self.lim	
                 else:	
-                    self.active_power_PV[i] = 0.0	
+                    self.alpha_PV[i] = 0.0	
             elif i in range(len(self.num_pv)-1):	
-                if self.mu_min[i-1] != 0 or self.mu_min[i+1] != 0:	
+                if (self.mu_min[i-1] != 0 and self.xi_min[i-1] !=0) or (self.mu_min[i+1] != 0 and self.xi_min[i+1] !=0):	
                     self.alpha_PV[i] = self.K1*self.lim	
                 else:	
-                    self.active_power_PV[i] = 0.0	
+                    self.alpha_PV[i] = 0.0	
             elif i == len(self.num_pv)-1:	
-                if self.mu_min[i-1] != 0: 	
+                if self.mu_min[i-1] != 0 and self.xi_min[i-1] !=0: 	
                     self.alpha_PV[i] = self.K1*self.lim	
                 else:	
-                    self.active_power_PV[i] = 0.0               	
+                    self.alpha_PV[i] = 0.0               	
             else:	
-                pass
+                pass       
 
         self.active_power_battery = active_power_battery
 
@@ -88,7 +88,7 @@ class Quadratic_Control_PV():
             if self.xi_min[i] !=0 and i != 0:
                 self.alpha_PV[i] = self.K1*self.lim
             else:
-                self.alpha_PV[i] = self.K1*self.lim   
+                self.alpha_PV[i] = 0.001#self.K1*self.lim   
 
 
         return self.reactive_power, self.active_power_PV, self.active_power_battery

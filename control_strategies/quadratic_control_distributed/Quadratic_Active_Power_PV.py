@@ -29,8 +29,8 @@ class Quadratic_Active_Power_PV:
 
         # Problem parameters
         # =============================================================
-        self.V_MIN = 0.95  # undervoltage limit
-        self.V_MAX = 1.05 # overvoltage limit
+        self.V_MIN = 0.9  # undervoltage limit
+        self.V_MAX = 1.1 # overvoltage limit
 
         self.p_PV = [0.0] *len(self.c)
 
@@ -84,11 +84,11 @@ class Quadratic_Active_Power_PV:
 
         ############# CALCULATE PV ACTIVE POWER CONTROL ######################################## 
         lan_multi_p = algorithms_controllable_loads(lamda_max=self.lamda_p_max, lamda_min=self.lamda_p_min, alpha=self.alpha_p, v=self.v_gen,
-                                                    VMAX=self.VMAX_PV, VMIN=self.VMIN_PV, ng=self.c,delta_t = 0.95)
+                                                    VMAX=self.VMAX_PV, VMIN=self.VMIN_PV, ng=self.c,delta_t = 0.98)
         self.lamda_p_max = lan_multi_p.network_compensation()[0]
         self.lamda_p_min = lan_multi_p.network_compensation()[1]
         p_calc = algorithms_controllable_loads(lamda=self.lamda_p_max,lamda_min=self.lamda_p_min,K=self.K,xi_min=self.xi_min,xi_max=self.xi_max,gamma=self.gamma_p,
-                                            G_p=self.G_p,PMAX=self.PMAX, PMIN=self.PMIN, ng=self.c, phat_pre=self.p_PV,delta_t = 0.95, X = self.X)
+                                            G_p=self.G_p,PMAX=self.PMAX, PMIN=self.PMIN, ng=self.c, phat_pre=self.p_PV,delta_t = 0.98, X = self.X)
         self.p_PV = p_calc.inner_loop()[0]
         self.xi_max = p_calc.inner_loop()[1]
         self.xi_min = p_calc.inner_loop()[2]
