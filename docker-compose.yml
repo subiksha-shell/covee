@@ -1,7 +1,7 @@
 version: '3.3'
 
 services:
-  pv_centralized:
+  covee:
     build:
       context: '.'
       dockerfile: './Dockerfile'
@@ -12,7 +12,7 @@ services:
     command: bash -c "cd centralized && 
                       make init &&
                       cd .. &&
-                      /centralized/covee/bin/python3 /centralized/Control_main.py --ext_port 7071"
+                      /covee/covee/bin/python3 /covee/Control_main.py --ext_port 7071"
     # command:          tail -F dfsdfödslk
     ports:
       - 7071:8000

@@ -64,9 +64,4 @@ class matrix_calc():
         Xgg = np.delete(Xgg, diff, axis=0)
         Xgg = np.delete(Xgg, diff, axis=1)
 
-        # print(Xgg)
-
-        #G = np.linalg.inv((np.matrix(np.imag(Xgg))))
-        # print("G",(G))
-
         return np.matrix(np.real(Xgg)), np.matrix(np.imag(Xgg))

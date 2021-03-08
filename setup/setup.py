@@ -8,7 +8,9 @@ requiredPackages = [#should only contain third party pakages
     "matplotlib",
     "ipython",
     "requests",
-    "paho-mqtt"
+    "paho-mqtt",
+    "cvxopt",
+    "osqp"
 ],
 
 setup(

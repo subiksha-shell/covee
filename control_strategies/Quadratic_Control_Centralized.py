@@ -1,102 +1,151 @@
-import control_strategies.quadratic_control_centralized as quadratic_control
 import numpy as np
 from cvxopt import matrix, solvers
+import matplotlib.pyplot as plt
+from scipy.linalg import block_diag
+import os
 import picos as pic
+import osqp
+from scipy import sparse
+
+import control_strategies.quadratic_control_centralized as quadratic_control
+
 
 class Quadratic_Control_Centralized():
 
-    def __init__(self, grid_data, num_pv, num_ESS):
-
+    def __init__(self, grid_data, num_pv):
         self.grid_data = grid_data	
         self.num_pv = num_pv
-        self.num_bus = self.grid_data["nb"]
-        self.num_ESS = num_ESS
+        self.num_bus = self.grid_data["nb"]     
+
+
         self.QMIN = []
         self.QMAX = []
         self.PMIN = []
         self.PMAX = []
-        self.PMIN_ESS = []
-        self.PMAX_ESS = []
 
         # Problem parameters
         # =============================================================
         self.V_MIN = 0.95  # undervoltage limit
         self.V_MAX = 1.050  # overvoltage limit
-        # Initialize LIM
+        self.V_NOM = 1.00  # nominal voltage
+
+        # DEFINE LIM
         # =============================================================
         for i in range(int(len(self.num_pv))):
             self.QMIN.append(-0.8)
             self.QMAX.append(0.8)
             self.PMIN.append(-3.0)
             self.PMAX.append(+3.0)
-            self.PMIN_ESS.append(-3.0)
-            self.PMAX_ESS.append(+3.0)
 
     def initialize_control(self): 
 
-        self.num_pv = list(np.array(self.num_pv)-1)
-        calculate_matrix_PV = quadratic_control.matrix_calc(self.grid_data, self.num_pv) 
-        [self.R,self.X] = calculate_matrix_PV.calculate()
-        return self.R,self.X
-  
-    def control_(self, PV_list, q_PV, active_power_PV, v_gen, active_power_battery, v_ess):
-        
-        n = len(self.num_pv)
-        # DEFINE LIM (DYNAMIC)
-        # =============================================================
-        for i in range(int(len(self.num_pv))):
-            self.QMIN[i] = -0.312*(PV_list[i]+1e-2)   # 40% of the available power
-            self.QMAX[i] = 0.312*(PV_list[i]+1e-2)    # 40% of the available power
-            self.PMIN[i] = -PV_list[i]
-            self.PMAX[i] = 0.0
-            self.PMIN_ESS[i] = -0.8
-            self.PMAX_ESS[i] = 0.8           
-        
-        self.VMAX = [self.V_MAX] * int(len(self.num_pv))       # create array of VMAX
-        self.VMIN = [self.V_MIN] * int(len(self.num_pv))       # create array of VMIN    
-        self.VNOM = np.transpose(np.matrix(v_gen))-R*np.transpose(np.matrix([active_power_PV])+np.matrix([active_power_battery]))
-                    -X*np.transpose(np.matrix([q_PV]))
+        self.num_pv = list(np.array(self.num_pv))
+        self.bus_values = (np.array(list(range(1,self.num_bus)))).tolist()
+        calculate_matrix_full = quadratic_control.matrix_calc(self.grid_data, self.bus_values) 
+        [R,X] = calculate_matrix_full.calculate()
+        self.additional = quadratic_control.additional(self.bus_values)
+
+        self.P_activate = [1]*len(self.bus_values)
+      
+        return R,X
+
+    def control_(self, pvproduction, active_power, reactive_power, v_gen, R, X, active_nodes, v_tot):
+
+        full_nodes = self.bus_values
+        n = len(self.bus_values)
+        v_tot = v_tot[1:len(v_tot)]
+
+        [reactive_power_full, active_power_full, pv_input_full, full_active] = self.additional.resize_in(full_nodes,active_nodes,active_power,
+                                                                                                                    reactive_power,pvproduction,n)
+
+        k = 0
+        var= {}
+        var["ref"] =  {"active_power": np.array([0.0]*n), "voltage": np.array([-0.0]*n)}
+        var["QMIN"] = np.array([-0.312*pv_input_full[i] for i in range(int(n))])
+        var["QMAX"] = np.array([0.312*pv_input_full[i] for i in range(int(n))])
+        var["PMIN"] = np.array([-(pv_input_full[i]+1e-6) for i in range(int(n))])
+        var["PMAX"] = np.array([0.0+1e-6 for i in range(int(n))])
+        var["VNOM"] = {"active_power": np.transpose(np.matrix(v_tot))-R*np.transpose(np.matrix([active_power_full])), 
+                        "reactive_power": np.transpose(np.matrix(v_tot))-X*np.transpose(np.matrix([reactive_power_full]))}
+
+      
+        self.VMAX = [self.V_MAX] * int(n)       # create array of VMAX
+        self.VMIN = [self.V_MIN] * int(n)       # create array of VMIN    
+
 
         b_ub = {}
         b_lb = {}
-        b = {}
+        b_u = {}
+        b_l = {}
+        b_rate_ub = {}
+        b_rate_lb = {}
+        A = {}
+        A_rate = {}
 
-        W_Q = np.diag(1*np.eye(n))
-        W_P = np.diag(1*np.eye(n))
-        W_ESS = np.diag(1*np.eye(n))
-        # W_V = np.diag(1*np.eye(n))
+        A['active_power'] = R
+        A['reactive_power'] = X
 
-        b["active_power_PV"] = np.transpose(np.matrix([np.array(self.VMAX)]))-self.VNOM
-        b["reactive_power_PV"] = np.transpose(np.matrix([np.array(self.VMAX)]))-self.VNOM
-        b["active_power_ESS"] = np.transpose(np.matrix([np.array(self.VMAX)]))-self.VNOM
+        b_u["reactive_power"] = np.transpose(np.matrix([np.array(self.VMAX)]))-var["VNOM"]["reactive_power"]
+        b_u["active_power"] = np.transpose(np.matrix([np.array(self.VMAX)]))-var["VNOM"]["active_power"]
+        
+        b_l["reactive_power"] = np.transpose(np.matrix([np.array(self.VMIN)]))-var["VNOM"]["active_power"]
+        b_l["active_power"] = np.transpose(np.matrix([np.array(self.VMIN)]))-var["VNOM"]["active_power"]
+        
+        b_ub["active_power"] = np.transpose(np.matrix([var["PMAX"]]))
+        b_ub["reactive_power"] = np.transpose(np.matrix([var["QMAX"]]))
+        b_ub["voltage"] = np.transpose(np.matrix([self.VMAX]))
 
-        ############# Box Contraints #################################
-        # Upper boundaries
-        b_ub["active_power_PV"] = np.transpose(np.matrix([self.PMAX]))
-        b_ub["reactive_power_PV"] = np.transpose(np.matrix([self.QMAX]))    
-        b_ub["active_power_ESS"] = np.transpose(np.matrix([self.PMAX_ESS]))       
-        # Lower boundaries
-        b_lb["active_power_PV"] = np.transpose(np.matrix([self.PMAX]))
-        b_lb["reactive_power_PV"] = np.transpose(np.matrix([self.QMAX]))    
-        b_lb["active_power_ESS"] = np.transpose(np.matrix([self.PMAX_ESS])) 
+        b_lb["active_power"] = np.transpose(np.matrix([var["PMIN"]]))
+        b_lb["reactive_power"] = np.transpose(np.matrix([var["QMIN"]]))
+        b_lb["voltage"] = np.transpose(np.matrix([self.VMIN])) 
+
+
+        W_Q = np.diag(1*np.eye(n)*full_active)
+        W_P = np.diag(1*np.eye(n)*full_active)
+        W_V = np.diag(1*np.eye(n)*full_active)
+    
+
+        p_ref = var["ref"]["active_power"]
+        v_ref = var["ref"]["voltage"]
 
         ########### Matrixes  ################################## 
-        # AA_V = np.concatenate((np.eye(n), -np.eye(n)))
-        # BB_V = np.concatenate((b_ub["voltage"], -b_lb["voltage"]))        
+        AA_V = np.concatenate((np.eye(n), -np.eye(n)))
+        BB_V = np.concatenate((b_ub["voltage"], -b_lb["voltage"]))        
 
         
-        AA_P = np.concatenate((self.R,np.eye(n), -np.eye(n)))
-        BB_P = np.concatenate((b["active_power"],b_ub["active_power"], -b_lb["active_power"]))
+        AA_P = np.concatenate((A["active_power"],np.eye(n)))
+        BB_P_U = np.concatenate((b_u["active_power"],b_ub["active_power"]))
+        BB_P_L = np.concatenate((b_l["active_power"],b_lb["active_power"]))
 
-        AA_Q = 
-        BB_Q = 
-        ##########################################################            
+        AA_Q = np.concatenate((A["reactive_power"],np.eye(n)))
+        BB_Q_U = np.concatenate((b_u["reactive_power"],b_ub["reactive_power"]))
+        BB_Q_L = np.concatenate((b_l["reactive_power"],b_lb["reactive_power"]))
+        ##########################################################
+   
+        ########## Problem definition ############################## 
+        P_P = sparse.csc_matrix(np.array([self.P_activate])*np.diag(W_P))
+        q_P = np.array([0]*n)
+        A_P = sparse.csc_matrix(AA_P)
+        u_P = BB_P_U
+        l_P = BB_P_L
 
-        return self.reactive_power, self.active_power_PV, self.active_power_battery
-
-
+        P_Q = sparse.csc_matrix(2*np.diag(W_Q))
+        q_Q = np.array([0]*n)
+        A_Q = sparse.csc_matrix(AA_Q)
+        u_Q = BB_Q_U
+        l_Q = BB_Q_L
         
+        prob = osqp.OSQP()
+        prob.setup(P=P_P, q=q_P, A=A_P, l=l_P, u=u_P, verbose = False)
+        res = prob.solve()
+        p_sol_centr = res.x
 
+        prob.update(Px=P_Q.data, q=q_Q, Ax=A_Q.data, l=l_Q, u=u_Q)
+        res = prob.solve()
+        q_sol_centr = res.x
 
+        [reactive_power_sol, active_power_sol] = self.additional.resize_out(active_nodes,q_sol_centr,p_sol_centr,reactive_power_full,active_power_full)
 
+        self.P_activate = self.additional.prioritize(q_sol_centr,var["QMIN"],self.P_activate,n,case=None)
 
+        return  (active_power_sol).tolist(), (reactive_power_sol).tolist()
