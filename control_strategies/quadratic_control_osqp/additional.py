@@ -85,19 +85,19 @@ class additional():
         elif case == "prioritize":
             for i in range(n):	
                 if i == 0:	
-                    if abs(q_sol_centr[i])!= None and abs(q_sol_centr[i]) > abs(0.9*var["QMIN"][i]):	
+                    if abs(q_sol_centr[i])!= None and abs(q_sol_centr[i]) > abs(0.9*QMIN[i]):	
                         P_activate[i] = 2.0
                     else:	
                         P_activate[i] = 1000
                     if i ==10:
                         P_activate[i] = 2.0
                 elif i in range(n-1):	
-                    if  (abs(q_sol_centr[i-1])!= None and (abs(q_sol_centr[i-1]) > abs(0.9*var["QMIN"][i-1]))) or (q_sol_centr[i+1]!= None and (q_sol_centr[i+1] > abs(0.9*var["QMAX"][i+1]))):	
+                    if  (abs(q_sol_centr[i-1])!= None and (abs(q_sol_centr[i-1]) > abs(0.9*QMIN[i-1]))) or (q_sol_centr[i+1]!= None and (q_sol_centr[i+1] > abs(0.9*QMIN[i+1]))):	
                         P_activate[i] = 2.0
                     else:	
                         P_activate[i] = 1000	
                 elif i == n-1:	
-                    if (abs(q_sol_centr[i-1])!= None and (abs(q_sol_centr[i-1]) > abs(0.9*var["QMIN"][i-1]))): 	
+                    if (abs(q_sol_centr[i-1])!= None and (abs(q_sol_centr[i-1]) > abs(0.9*QMIN[i-1]))): 	
                         P_activate[i] = 2.0
                     else:	
                         P_activate[i] = 1000           	

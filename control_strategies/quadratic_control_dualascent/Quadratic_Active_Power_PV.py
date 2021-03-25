@@ -29,8 +29,8 @@ class Quadratic_Active_Power_PV:
 
         # Problem parameters
         # =============================================================
-        self.V_MIN = 0.9  # undervoltage limit
-        self.V_MAX = 1.1 # overvoltage limit
+        self.V_MIN = 0.900  # undervoltage limit
+        self.V_MAX = 1.099 # overvoltage limit
 
         self.p_PV = [0.0] *len(self.c)
 
@@ -64,7 +64,7 @@ class Quadratic_Active_Power_PV:
         self.X = param_p.g_parameter()[1]
         self.gamma_p = 1/(2*np.linalg.norm(self.G_p))
 
-        return self.p_PV, self.alpha_p
+        return self.p_PV, self.alpha_p,self.X
 
 
     def Voltage_Control(self, pv_production, p_PV, v_gen, alpha):

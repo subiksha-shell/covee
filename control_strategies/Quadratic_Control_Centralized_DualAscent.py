@@ -1,7 +1,7 @@
-import control_strategies.quadratic_control_distributed as quadratic_control
+import control_strategies.quadratic_control_dualascent as quadratic_control
 import numpy as np
 
-class Quadratic_Control_Distributed():
+class Quadratic_Control():
 
     def __init__(self, grid_data, num_pv, num_ESS):
 
@@ -20,13 +20,13 @@ class Quadratic_Control_Distributed():
     def initialize_control(self): 
 
         self.control_reactive_power = quadratic_control.Quadratic_Reactive_Power(self.grid_data,self.num_pv)
-        [self.reactive_power, self.mu_min] = self.control_reactive_power.initialize_control()
+        [self.reactive_power, self.mu_min,X] = self.control_reactive_power.initialize_control()
 
         self.control_active_power_PV = quadratic_control.Quadratic_Active_Power_PV(self.grid_data,self.num_pv)
-        [self.active_power_PV, self.alpha_PV] = self.control_active_power_PV.initialize_control()
+        [self.active_power_PV, self.alpha_PV,R] = self.control_active_power_PV.initialize_control()
 
         self.control_active_power_ESS = quadratic_control.Quadratic_Active_Power_Batt(self.grid_data,self.num_ESS)
-        [self.active_power_ESS, self.alpha_ESS, self.xi_min] = self.control_active_power_ESS.initialize_control()
+        [self.active_power_ESS, self.alpha_ESS, self.xi_min,R_ess] = self.control_active_power_ESS.initialize_control()
 
         iter_calculation = quadratic_control.iteration_calculation(self.grid_data,self.num_pv)
         self.lim = iter_calculation.calculate_alpha()
@@ -39,12 +39,14 @@ class Quadratic_Control_Distributed():
         self.K1 = 1.40
         for i in range(int(len(self.num_pv))):
             self.alpha[i] = self.K1*self.lim
-            self.alpha_PV[i] = self.K1*self.lim
+            self.alpha_PV[i] = 1e-3#self.K1*self.lim
         self.K2 = 1.4
         for i in range(int(len(self.num_ESS))):
             self.alpha_ESS[i] = self.K2*self.lim
+        
+        return X,R
     
-    def control_(self, PV_list, q_PV, active_power_PV, v_gen, active_power_battery, v_ess):
+    def control_(self, PV_list,active_power_PV,q_PV, R, X, active_nodes, v_gen, active_power_battery, v_ess):
         ############# RUN QUADRATIC VOLTAGE CONTROL ###############################################
         # By changing the ration alpha/alpha_p we can control if we want use
         # more the PV or the batteries for the regulation (for example depending on the SOC)
@@ -60,38 +62,40 @@ class Quadratic_Control_Distributed():
         # ACTIVE POWER CONTROL PV
         # ================================================================================================
         self.active_power_PV = self.control_active_power_PV.Voltage_Control(PV_list, active_power_PV, v_gen, self.alpha_PV)
+        print("alpha_PV",self.alpha_PV)
+        
         for i in range(len(self.num_pv)):	
             if i == 0:	
-                if self.mu_min[i+1] != 0 and self.xi_min[i+1] !=0:	
-                    self.alpha_PV[i] = self.K1*self.lim	
+                if self.mu_min[i+1] != 0:	
+                    self.alpha_PV[i] = 0.8*self.K1*self.lim		
                 else:	
-                    self.alpha_PV[i] = 0.0	
+                    self.alpha_PV[i] = 1e-3
             elif i in range(len(self.num_pv)-1):	
-                if (self.mu_min[i-1] != 0 and self.xi_min[i-1] !=0) or (self.mu_min[i+1] != 0 and self.xi_min[i+1] !=0):	
-                    self.alpha_PV[i] = self.K1*self.lim	
+                if (self.mu_min[i-1] != 0) or (self.mu_min[i+1] != 0):	
+                    self.alpha_PV[i] = 0.8*self.K1*self.lim	
                 else:	
-                    self.alpha_PV[i] = 0.0	
+                    self.alpha_PV[i] = 1e-3	
             elif i == len(self.num_pv)-1:	
-                if self.mu_min[i-1] != 0 and self.xi_min[i-1] !=0: 	
-                    self.alpha_PV[i] = self.K1*self.lim	
+                if self.mu_min[i-1] != 0: 	
+                    self.alpha_PV[i] = 0.8*self.K1*self.lim	
                 else:	
-                    self.alpha_PV[i] = 0.0               	
+                    self.alpha_PV[i] = 1e-3           	
             else:	
-                pass       
+                pass
 
         self.active_power_battery = active_power_battery
 
         # COORDINATED ACTIVE POWER CONTROL (BATT)
         # ==========================================================================================================================================
         [self.active_power_battery, self.xi_min]  = self.control_active_power_ESS.Voltage_Control(self.active_power_battery, v_ess, self.alpha_ESS)
-        for i in range(len(self.num_pv)):
-            if self.xi_min[i] !=0 and i != 0:
-                self.alpha_PV[i] = self.K1*self.lim
-            else:
-                self.alpha_PV[i] = 0.001#self.K1*self.lim   
+        # for i in range(len(self.num_pv)):
+        #     if self.xi_min[i] !=0 and i != 0:
+        #         self.alpha_PV[i] = self.K1*self.lim
+        #     else:
+        #         self.alpha_PV[i] = 0.001#self.K1*self.lim   
 
 
-        return self.reactive_power, self.active_power_PV, self.active_power_battery
+        return self.active_power_PV, self.reactive_power, self.active_power_battery
 
 
         

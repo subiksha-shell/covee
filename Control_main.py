@@ -16,7 +16,7 @@ from pypower.api import *
 from pypower.ext2int import ext2int
 import random
 
-from control_strategies.Quadratic_Control_Distributed import Quadratic_Control_Distributed
+from control_strategies.Quadratic_Control_Centralized_DualAscent import Quadratic_Control as Control
 
 from cases.LV_SOGNO import LV_SOGNO as case
 
@@ -149,8 +149,8 @@ active_ESS = active_nodes
 active_ESS_old = active_ESS
 active_power_ESS = [0.0]*len(active_ESS)
 print("active_nodes", active_nodes)
-control = Quadratic_Control_Distributed(grid_data, active_nodes, active_ESS)
-control.initialize_control()
+control = Control(grid_data, active_nodes,active_ESS)
+[R,X] = control.initialize_control()
 
 try:
     while True:
@@ -195,28 +195,24 @@ try:
             pv_input = {item:pv_input_meas[item] for item in pv_active}
             v_ess = {item:voltage_meas['node_'+str(int(item)+1)] for item in active_ESS} 
 
-            v_gen = list(v_gen.values())#[1.07]*len(list(voltage_meas.values()))
+            v_gen = list(v_gen.values())
             pv_input = list(pv_input.values())
             v_ess = list(v_ess.values())
 
             ################### re-initialize if new set of active nodes ###########################
             if active_nodes != active_nodes_old or active_ESS != active_ESS_old:
-                control = Quadratic_Control_PV(grid_data, active_nodes, active_ESS)
-                control.initialize_control()
+                control = Control(grid_data, active_nodes)
+                [R,X] = control.initialize_control()
                 active_nodes_old = active_nodes
                 active_ESS_old = active_ESS
-            
-            [reactive_power, active_power,active_power_ESS] = control.control_(pv_input, reactive_power, active_power, v_gen, active_power_ESS, v_ess)
 
-            # active_power = [0.0]*num_pv
-            # reactive_power = [0.0]*num_pv
-            # active_power_ESS = [0.0]*len(active_ESS)
 
-            # print(active_power)
+            [active_power,reactive_power,active_power_ESS] = control.control_(pv_input, active_power, reactive_power, R, X, active_nodes, v_gen, active_power_ESS, v_ess)
+            active_power_ESS = [0.0]*len(active_ESS)
 
+            # updating dictionaries
             k = 0
             for key in pv_active:
-                #updating dictionaries
                 active_power_dict[key] = active_power[k]
                 reactive_power_dict[key] = reactive_power[k]
                 k +=1
@@ -224,7 +220,7 @@ try:
             for ess in active_ESS:
                 active_power_ESS_dict['node_'+str(int(ess)+1)] = active_power_ESS[k]
                 k+=1
-
+ 
             dmuObj.setDataSubset({"active_power":active_power_dict},"active_power_dict")
             dmuObj.setDataSubset({"reactive_power":reactive_power_dict},"reactive_power_dict")
             dmuObj.setDataSubset({"active_power_ESS":active_power_ESS_dict},"active_power_ESS_dict")
@@ -236,7 +232,7 @@ try:
         else:
             pass
 
-        time.sleep(0.5)
+        time.sleep(1)
 
 except (KeyboardInterrupt, SystemExit):
     print('simulation finished')

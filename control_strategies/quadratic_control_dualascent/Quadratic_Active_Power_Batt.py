@@ -73,7 +73,7 @@ class Quadratic_Active_Power_Batt:
         self.X = param_p.g_parameter()[1]
         self.gamma_p = 1/(2*np.linalg.norm(self.G_p))
 
-        return self.p_batt, self.alpha_p, self.xi_min	
+        return self.p_batt, self.alpha_p, self.xi_min,self.X	
 
 
     def Voltage_Control(self, p_batt, v_bat, alpha_P):

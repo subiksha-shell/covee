@@ -3,16 +3,15 @@ from cvxopt import matrix, solvers
 import matplotlib.pyplot as plt
 from scipy.linalg import block_diag
 import os
-import picos as pic
 import osqp
 from scipy import sparse
 
-import control_strategies.quadratic_control_centralized as quadratic_control
+import control_strategies.quadratic_control_osqp as quadratic_control
 
 
-class Quadratic_Control_Centralized():
+class Quadratic_Control():
 
-    def __init__(self, grid_data, num_pv):
+    def __init__(self, grid_data, num_pv,num_ESS):
         self.grid_data = grid_data	
         self.num_pv = num_pv
         self.num_bus = self.grid_data["nb"]     
@@ -26,7 +25,7 @@ class Quadratic_Control_Centralized():
         # Problem parameters
         # =============================================================
         self.V_MIN = 0.95  # undervoltage limit
-        self.V_MAX = 1.050  # overvoltage limit
+        self.V_MAX = 1.1  # overvoltage limit
         self.V_NOM = 1.00  # nominal voltage
 
         # DEFINE LIM
@@ -49,11 +48,10 @@ class Quadratic_Control_Centralized():
       
         return R,X
 
-    def control_(self, pvproduction, active_power, reactive_power, v_gen, R, X, active_nodes, v_tot):
+    def control_(self, pvproduction, active_power, reactive_power, R, X, active_nodes, v_tot, active_power_battery, v_ess):
 
         full_nodes = self.bus_values
-        n = len(self.bus_values)
-        v_tot = v_tot[1:len(v_tot)]
+        n = len(self.bus_values)        
 
         [reactive_power_full, active_power_full, pv_input_full, full_active] = self.additional.resize_in(full_nodes,active_nodes,active_power,
                                                                                                                     reactive_power,pvproduction,n)
@@ -123,7 +121,7 @@ class Quadratic_Control_Centralized():
         ##########################################################
    
         ########## Problem definition ############################## 
-        P_P = sparse.csc_matrix(np.array([self.P_activate])*np.diag(W_P))
+        P_P = sparse.csc_matrix(10e6*np.diag(W_P))
         q_P = np.array([0]*n)
         A_P = sparse.csc_matrix(AA_P)
         u_P = BB_P_U
@@ -136,16 +134,16 @@ class Quadratic_Control_Centralized():
         l_Q = BB_Q_L
         
         prob = osqp.OSQP()
-        prob.setup(P=P_P, q=q_P, A=A_P, l=l_P, u=u_P, verbose = False)
-        res = prob.solve()
-        p_sol_centr = res.x
-
-        prob.update(Px=P_Q.data, q=q_Q, Ax=A_Q.data, l=l_Q, u=u_Q)
+        prob.setup(P=P_Q, q=q_Q, A=A_Q, l=l_Q, u=u_Q, verbose = False)
         res = prob.solve()
         q_sol_centr = res.x
 
-        [reactive_power_sol, active_power_sol] = self.additional.resize_out(active_nodes,q_sol_centr,p_sol_centr,reactive_power_full,active_power_full)
+        # prob.update(Px=P_P.data, q=q_P, Ax=A_P.data, l=l_P, u=u_P)
+        # res = prob.solve()
+        # p_sol_centr = res.x
 
-        self.P_activate = self.additional.prioritize(q_sol_centr,var["QMIN"],self.P_activate,n,case=None)
+        [reactive_power_sol, active_power_sol] = self.additional.resize_out(active_nodes,q_sol_centr,active_power,reactive_power_full,active_power_full)
 
-        return  (active_power_sol).tolist(), (reactive_power_sol).tolist()
+        self.P_activate = self.additional.prioritize(q_sol_centr,var["QMIN"],self.P_activate,n,case='prioritize')
+
+        return  (active_power_sol).tolist(), (reactive_power_sol).tolist(), active_power_battery
