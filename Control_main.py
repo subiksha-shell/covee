@@ -16,7 +16,7 @@ from pypower.api import *
 from pypower.ext2int import ext2int
 import random
 
-from control_strategies.Quadratic_Control_Centralized_DualAscent import Quadratic_Control as Control
+from control_strategies.Quadratic_Control_Centralized_OSQP import Quadratic_Control as Control
 
 from cases.LV_SOGNO import LV_SOGNO as case
 
@@ -206,7 +206,6 @@ try:
                 active_nodes_old = active_nodes
                 active_ESS_old = active_ESS
 
-
             [active_power,reactive_power,active_power_ESS] = control.control_(pv_input, active_power, reactive_power, R, X, active_nodes, v_gen, active_power_ESS, v_ess)
             active_power_ESS = [0.0]*len(active_ESS)
 
@@ -232,7 +231,7 @@ try:
         else:
             pass
 
-        time.sleep(1)
+        time.sleep(0.3)
 
 except (KeyboardInterrupt, SystemExit):
     print('simulation finished')

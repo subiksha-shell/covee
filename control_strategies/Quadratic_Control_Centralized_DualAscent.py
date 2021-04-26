@@ -20,10 +20,10 @@ class Quadratic_Control():
     def initialize_control(self): 
 
         self.control_reactive_power = quadratic_control.Quadratic_Reactive_Power(self.grid_data,self.num_pv)
-        [self.reactive_power, self.mu_min,X] = self.control_reactive_power.initialize_control()
+        [self.reactive_power, self.mu_min,Z] = self.control_reactive_power.initialize_control()
 
         self.control_active_power_PV = quadratic_control.Quadratic_Active_Power_PV(self.grid_data,self.num_pv)
-        [self.active_power_PV, self.alpha_PV,R] = self.control_active_power_PV.initialize_control()
+        [self.active_power_PV, self.alpha_PV,Z] = self.control_active_power_PV.initialize_control()
 
         self.control_active_power_ESS = quadratic_control.Quadratic_Active_Power_Batt(self.grid_data,self.num_ESS)
         [self.active_power_ESS, self.alpha_ESS, self.xi_min,R_ess] = self.control_active_power_ESS.initialize_control()
@@ -36,13 +36,16 @@ class Quadratic_Control():
 
         # Set the parameters
         # ========================================================================
-        self.K1 = 1.40
+        self.K1 = 1.4
         for i in range(int(len(self.num_pv))):
             self.alpha[i] = self.K1*self.lim
             self.alpha_PV[i] = 1e-3#self.K1*self.lim
         self.K2 = 1.4
         for i in range(int(len(self.num_ESS))):
             self.alpha_ESS[i] = self.K2*self.lim
+
+        R = np.real(Z)
+        X = np.imag(Z)
         
         return X,R
     
@@ -62,7 +65,7 @@ class Quadratic_Control():
         # ACTIVE POWER CONTROL PV
         # ================================================================================================
         self.active_power_PV = self.control_active_power_PV.Voltage_Control(PV_list, active_power_PV, v_gen, self.alpha_PV)
-        print("alpha_PV",self.alpha_PV)
+        #print("alpha_PV",self.alpha_PV)
         
         for i in range(len(self.num_pv)):	
             if i == 0:	

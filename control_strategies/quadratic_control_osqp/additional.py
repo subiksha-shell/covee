@@ -36,7 +36,7 @@ class additional():
         return  reactive_power_full, active_power_full, pv_input_full, full_active  
 
 
-    def resize_out(self, active_nodes,q_sol_centr,p_sol_centr,reactive_power_full,active_power_full):
+    def resize_out(self, active_nodes,q_sol_centr,p_sol_centr,reactive_power_full,active_power_full,infeasibility_output):
 
         active_power_sol = np.zeros_like(active_nodes)
         reactive_power_sol = np.zeros_like(active_nodes)
@@ -54,7 +54,7 @@ class additional():
             for i in self.bus_values:
                 t +=1
                 if any(b == i for b in active_nodes):
-                    reactive_power_sol[k] = reactive_power_full[t-1]
+                    reactive_power_sol[k] = infeasibility_output[t-1]#reactive_power_full[t-1]
                     k += 1
                 else:
                     pass
@@ -79,35 +79,35 @@ class additional():
 
         return reactive_power_sol, active_power_sol
 
-    def prioritize(self,q_sol_centr, QMIN,P_activate,n,case):
+    def prioritize(self,q_sol_centr, QMIN,P_activate,n,case):        
         if case == None:
             pass
         elif case == "prioritize":
             for i in range(n):	
                 if i == 0:	
-                    if abs(q_sol_centr[i])!= None and abs(q_sol_centr[i]) > abs(0.9*QMIN[i]):	
-                        P_activate[i] = 2.0
+                    if abs(q_sol_centr[i]) > abs(0.98*QMIN[i]):	
+                        P_activate[i] = 1.0
                     else:	
-                        P_activate[i] = 1000
+                        P_activate[i] = 1e6
                     if i ==10:
-                        P_activate[i] = 2.0
+                        P_activate[i] = 1.0
                 elif i in range(n-1):	
-                    if  (abs(q_sol_centr[i-1])!= None and (abs(q_sol_centr[i-1]) > abs(0.9*QMIN[i-1]))) or (q_sol_centr[i+1]!= None and (q_sol_centr[i+1] > abs(0.9*QMIN[i+1]))):	
-                        P_activate[i] = 2.0
+                    if  ((abs(q_sol_centr[i-1]) > abs(0.98*QMIN[i-1]))) or ((abs(q_sol_centr[i+1]) > abs(0.98*QMIN[i+1]))):	
+                        P_activate[i] = 1.0
                     else:	
-                        P_activate[i] = 1000	
+                        P_activate[i] = 1e6	
                 elif i == n-1:	
-                    if (abs(q_sol_centr[i-1])!= None and (abs(q_sol_centr[i-1]) > abs(0.9*QMIN[i-1]))): 	
-                        P_activate[i] = 2.0
+                    if ((abs(q_sol_centr[i-1]) > abs(0.98*QMIN[i-1]))): 	
+                        P_activate[i] = 1.0
                     else:	
-                        P_activate[i] = 1000           	
+                        P_activate[i] = 1e6           	
                 else:	
-                    P_activate[i] = 1000
+                    P_activate[i] = 1e6
         elif case == "test":
             for i in range(n):
                 if i>10:
-                    P_activate[i] = 2.0
+                    P_activate[i] = 1.0
                 else:
-                    P_activate[i] = 1000
+                    P_activate[i] = 1e6
 
         return P_activate

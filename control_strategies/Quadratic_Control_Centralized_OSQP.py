@@ -44,7 +44,7 @@ class Quadratic_Control():
         [R,X] = calculate_matrix_full.calculate()
         self.additional = quadratic_control.additional(self.bus_values)
 
-        self.P_activate = [1]*len(self.bus_values)
+        self.P_activate = [1e6]*len(self.bus_values)
       
         return R,X
 
@@ -70,7 +70,6 @@ class Quadratic_Control():
         self.VMAX = [self.V_MAX] * int(n)       # create array of VMAX
         self.VMIN = [self.V_MIN] * int(n)       # create array of VMIN    
 
-
         b_ub = {}
         b_lb = {}
         b_u = {}
@@ -84,7 +83,7 @@ class Quadratic_Control():
         A['reactive_power'] = X
 
         b_u["reactive_power"] = np.transpose(np.matrix([np.array(self.VMAX)]))-var["VNOM"]["reactive_power"]
-        b_u["active_power"] = np.transpose(np.matrix([np.array(self.VMAX)]))-var["VNOM"]["active_power"]
+        b_u["active_power"] = np.transpose(np.matrix([np.array(self.VMAX)*np.array(self.P_activate)]))-var["VNOM"]["active_power"]
         
         b_l["reactive_power"] = np.transpose(np.matrix([np.array(self.VMIN)]))-var["VNOM"]["active_power"]
         b_l["active_power"] = np.transpose(np.matrix([np.array(self.VMIN)]))-var["VNOM"]["active_power"]
@@ -121,7 +120,7 @@ class Quadratic_Control():
         ##########################################################
    
         ########## Problem definition ############################## 
-        P_P = sparse.csc_matrix(10e6*np.diag(W_P))
+        P_P = sparse.csc_matrix(2*np.diag(W_P))
         q_P = np.array([0]*n)
         A_P = sparse.csc_matrix(AA_P)
         u_P = BB_P_U
@@ -138,12 +137,19 @@ class Quadratic_Control():
         res = prob.solve()
         q_sol_centr = res.x
 
-        # prob.update(Px=P_P.data, q=q_P, Ax=A_P.data, l=l_P, u=u_P)
-        # res = prob.solve()
-        # p_sol_centr = res.x
+        if any(np.array(v_tot)[i]-np.array(self.VMAX)[i]>0.01 for i in range(n)) and res.info.status == 'primal infeasible':
+            infeasibility_output = var["QMIN"] 
+        elif any(np.array(v_tot)[i]-np.array(self.VMIN)[i]<0.01 for i in range(n)) and res.info.status == 'primal infeasible':
+            infeasibility_output = var["QMAX"]
+        else:
+            infeasibility_output = reactive_power_full
 
-        [reactive_power_sol, active_power_sol] = self.additional.resize_out(active_nodes,q_sol_centr,active_power,reactive_power_full,active_power_full)
+        prob.update(Px=P_P.data, q=q_P, Ax=A_P.data, l=l_P, u=u_P)
+        res = prob.solve()
+        p_sol_centr = res.x
 
-        self.P_activate = self.additional.prioritize(q_sol_centr,var["QMIN"],self.P_activate,n,case='prioritize')
+        [reactive_power_sol, active_power_sol] = self.additional.resize_out(active_nodes,q_sol_centr,p_sol_centr,reactive_power_full,active_power_full, infeasibility_output)
+
+        self.P_activate = self.additional.prioritize(reactive_power_sol,var["QMIN"],self.P_activate,n,case='prioritize')
 
         return  (active_power_sol).tolist(), (reactive_power_sol).tolist(), active_power_battery
