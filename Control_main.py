@@ -62,6 +62,16 @@ field_styles=dict(
     name=dict(color='blue')))
 logging.info("Program Start")
 
+if bool(os.getenv('MQTT_ENABLED')):
+    mqtt_url = str(os.getenv('MQTTURL'))
+    mqtt_port = int(os.getenv('MQTTPORT'))
+    mqtt_user = str(os.getenv('MQTTUSER'))
+    mqtt_password = str(os.getenv('MQTTPASS'))
+else:
+    mqtt_url = "mqtt"
+    mqtt_port = 1883
+    mqtt_password = ""
+    mqtt_user = ""
 
 ############################ Start the Server #######################################################
 
@@ -69,7 +79,7 @@ logging.info("Program Start")
 dmuObj = dmu()
 
 ''' Start mqtt client '''
-mqttObj = mqttClient("mqtt", dmuObj)
+mqttObj = mqttClient(mqtt_url, dmuObj, mqtt_port, mqtt_user, mqtt_password)
 
 ''' Start http server '''
 httpSrvThread2 = threading.Thread(name='httpSrv',target=httpSrv, args=("0.0.0.0", int(ext_port) ,dmuObj,))
@@ -101,6 +111,7 @@ active_power_dict = {}
 reactive_power_dict = {}
 active_power_ESS_dict = {}
 pv_input_dict = {}
+pmu_input = {}
 
 # add the simulation dictionary to mmu object
 dmuObj.addElm("simDict", simDict)
@@ -109,6 +120,7 @@ dmuObj.addElm("active_power_dict", active_power_dict)
 dmuObj.addElm("reactive_power_dict", reactive_power_dict)
 dmuObj.addElm("pv_input_dict", pv_input_dict)
 dmuObj.addElm("active_power_ESS_dict", active_power_ESS_dict)
+dmuObj.addElm("pmu_input", pmu_input)
 
 ########################################################################################################
 #########################  Section for Receiving Signal  ###############################################
@@ -130,7 +142,9 @@ mqttObj.attachSubscriber("/voltage_control/measuremnts/voltage","json","voltage_
 # Receive pv_input
 dmuObj.addElm("pv_input", simDict)
 mqttObj.attachSubscriber("/voltage_control/measuremnts/pv","json","pv_input_dict")
-
+# Receive pmu_meas
+dmuObj.addElm("pmu_meas", {})
+mqttObj.attachSubscriber("/edgeflex/edgepmu0/ch0/amplitude","json","pmu_input")
 ########################################################################################################
 #########################  Section for Sending Signal  #################################################
 ########################################################################################################
@@ -159,13 +173,17 @@ try:
         active_power_ESS_dict = {}
         voltage_value = dmuObj.getDataSubset("voltage_dict")
         voltage_meas = voltage_value.get("voltage_measurements", None)
-        logging.debug("voltage_measurements")
-        logging.debug(voltage_meas)
+        # logging.debug("voltage_measurements")
+        # logging.debug(voltage_meas)
+
+        pmu_received = dmuObj.getDataSubset("pmu_input")
+        logging.debug("pmu_input")
+        logging.debug(pmu_received)
 
         pv_input_value = dmuObj.getDataSubset("pv_input_dict")
         pv_input_meas = pv_input_value.get("pv_input_measurements", None)
-        logging.debug("pv_input_measurements")
-        logging.debug(pv_input_meas)
+        # logging.debug("pv_input_measurements")
+        # logging.debug(pv_input_meas)
 
         active_nodes = dmuObj.getDataSubset("simDict","active_nodes")
         if not active_nodes:
@@ -224,9 +242,9 @@ try:
             dmuObj.setDataSubset({"reactive_power":reactive_power_dict},"reactive_power_dict")
             dmuObj.setDataSubset({"active_power_ESS":active_power_ESS_dict},"active_power_ESS_dict")
 
-            print("Reactive Power", reactive_power_dict)
-            print("Active Power", active_power_dict)
-            print("Active Power ESS", active_power_ESS_dict)
+            # print("Reactive Power", reactive_power_dict)
+            # print("Active Power", active_power_dict)
+            # print("Active Power ESS", active_power_ESS_dict)
 
         else:
             pass
