@@ -91,11 +91,7 @@ class Quadratic_Control():
         # COORDINATED ACTIVE POWER CONTROL (BATT)
         # ==========================================================================================================================================
         [self.active_power_battery, self.xi_min]  = self.control_active_power_ESS.Voltage_Control(self.active_power_battery, v_ess, self.alpha_ESS)
-        # for i in range(len(self.num_pv)):
-        #     if self.xi_min[i] !=0 and i != 0:
-        #         self.alpha_PV[i] = self.K1*self.lim
-        #     else:
-        #         self.alpha_PV[i] = 0.001#self.K1*self.lim   
+        self.active_power_battery = [0.0]*len(self.active_power_battery)
 
 
         return self.active_power_PV, self.reactive_power, self.active_power_battery

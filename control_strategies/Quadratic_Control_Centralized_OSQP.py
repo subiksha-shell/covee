@@ -5,6 +5,7 @@ from scipy.linalg import block_diag
 import os
 import osqp
 from scipy import sparse
+import coloredlogs, logging, threading
 
 import control_strategies.quadratic_control_osqp as quadratic_control
 
@@ -65,6 +66,7 @@ class Quadratic_Control():
         var["PMAX"] = np.array([0.0+1e-6 for i in range(int(n))])
         var["VNOM"] = {"active_power": np.transpose(np.matrix(v_tot))-R*np.transpose(np.matrix([active_power_full])), 
                         "reactive_power": np.transpose(np.matrix(v_tot))-X*np.transpose(np.matrix([reactive_power_full]))}
+        infeasibility_output = {"active_power": None, "reactive_power": None}
 
       
         self.VMAX = [self.V_MAX] * int(n)       # create array of VMAX
@@ -85,7 +87,7 @@ class Quadratic_Control():
         b_u["reactive_power"] = np.transpose(np.matrix([np.array(self.VMAX)]))-var["VNOM"]["reactive_power"]
         b_u["active_power"] = np.transpose(np.matrix([np.array(self.VMAX)*np.array(self.P_activate)]))-var["VNOM"]["active_power"]
         
-        b_l["reactive_power"] = np.transpose(np.matrix([np.array(self.VMIN)]))-var["VNOM"]["active_power"]
+        b_l["reactive_power"] = np.transpose(np.matrix([np.array(self.VMIN)]))-var["VNOM"]["reactive_power"]
         b_l["active_power"] = np.transpose(np.matrix([np.array(self.VMIN)]))-var["VNOM"]["active_power"]
         
         b_ub["active_power"] = np.transpose(np.matrix([var["PMAX"]]))
@@ -98,8 +100,8 @@ class Quadratic_Control():
 
 
         W_Q = np.diag(1*np.eye(n)*full_active)
-        W_P = np.diag(1*np.eye(n)*full_active)
-        W_V = np.diag(1*np.eye(n)*full_active)
+        W_P = np.diag(1*np.eye(n)*full_active*np.array(self.P_activate))
+        W_V = np.diag(200*np.eye(n)*full_active)
     
 
         p_ref = var["ref"]["active_power"]
@@ -118,38 +120,58 @@ class Quadratic_Control():
         BB_Q_U = np.concatenate((b_u["reactive_power"],b_ub["reactive_power"]))
         BB_Q_L = np.concatenate((b_l["reactive_power"],b_lb["reactive_power"]))
         ##########################################################
-   
-        ########## Problem definition ############################## 
-        P_P = sparse.csc_matrix(2*np.diag(W_P))
-        q_P = np.array([0]*n)
-        A_P = sparse.csc_matrix(AA_P)
-        u_P = BB_P_U
-        l_P = BB_P_L
+  
+        ########## Problem definition ##############################         
+        WQ_tot = np.diag(W_Q)
+        qQ_tot =np.array([0]*n)
+        AQ_tot = AA_Q
+        BQ_tot_U = BB_Q_U
+        BQ_tot_L = BB_Q_L        
+        
+        WP_tot = np.diag(W_P)
+        qP_tot = np.array([0]*n)
+        AP_tot = AA_P
+        BP_tot_U = BB_P_U
+        BP_tot_L = BB_P_L
 
-        P_Q = sparse.csc_matrix(2*np.diag(W_Q))
-        q_Q = np.array([0]*n)
-        A_Q = sparse.csc_matrix(AA_Q)
-        u_Q = BB_Q_U
-        l_Q = BB_Q_L
+        W_tot = block_diag(WQ_tot,WP_tot)
+        q_tot = np.concatenate((qQ_tot,qP_tot))
+        A_tot = block_diag(AQ_tot,AP_tot)
+        B_tot_U = np.concatenate((BQ_tot_U, BP_tot_U))
+        B_tot_L = np.concatenate((BQ_tot_L, BP_tot_L))
+
+        P = sparse.csc_matrix(W_tot)
+        q = np.array(q_tot)
+        A = sparse.csc_matrix(A_tot)
+        u = B_tot_U
+        l = B_tot_L
         
         prob = osqp.OSQP()
-        prob.setup(P=P_Q, q=q_Q, A=A_Q, l=l_Q, u=u_Q, verbose = False)
+        prob.setup(P=P, q=q, A=A, l=l, u=u, verbose = False)
         res = prob.solve()
-        q_sol_centr = res.x
+        q_sol_centr = res.x[:n]
+        p_sol_centr = res.x[n:2*n]
 
-        if any(np.array(v_tot)[i]-np.array(self.VMAX)[i]>0.01 for i in range(n)) and res.info.status == 'primal infeasible':
-            infeasibility_output = var["QMIN"] 
-        elif any(np.array(v_tot)[i]-np.array(self.VMIN)[i]<0.01 for i in range(n)) and res.info.status == 'primal infeasible':
-            infeasibility_output = var["QMAX"]
+        if res.info.status == 'primal infeasible':
+            logging.debug("primal infeasible")
+            if any(np.array(v_tot)[i]>np.array(self.VMAX)[i] for i in range(n)):
+                infeasibility_output["reactive_power"] = var["QMIN"] 
+                infeasibility_output["active_power"] = var["PMIN"] 
+            elif any(np.array(v_tot)[i]<np.array(self.VMIN)[i] for i in range(n)):
+                infeasibility_output["reactive_power"] = var["QMAX"]
+                infeasibility_output["active_power"] = var["PMAX"]
+            else:
+                infeasibility_output["reactive_power"] = reactive_power_full
+                infeasibility_output["active_power"] = active_power_full
         else:
-            infeasibility_output = reactive_power_full
+            infeasibility_output["reactive_power"] = q_sol_centr
+            infeasibility_output["active_power"] = p_sol_centr
 
-        prob.update(Px=P_P.data, q=q_P, Ax=A_P.data, l=l_P, u=u_P)
-        res = prob.solve()
-        p_sol_centr = res.x
-
-        [reactive_power_sol, active_power_sol] = self.additional.resize_out(active_nodes,q_sol_centr,p_sol_centr,reactive_power_full,active_power_full, infeasibility_output)
+        [reactive_power_sol, active_power_sol] = self.additional.resize_out(active_nodes,q_sol_centr,p_sol_centr,
+                                                                            reactive_power_full,active_power_full, infeasibility_output, res.info.status)
 
         self.P_activate = self.additional.prioritize(reactive_power_sol,var["QMIN"],self.P_activate,n,case='prioritize')
+
+        active_power_battery = [0.0]*len(active_power_battery)
 
         return  (active_power_sol).tolist(), (reactive_power_sol).tolist(), active_power_battery

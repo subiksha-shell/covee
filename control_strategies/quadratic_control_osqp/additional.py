@@ -36,17 +36,20 @@ class additional():
         return  reactive_power_full, active_power_full, pv_input_full, full_active  
 
 
-    def resize_out(self, active_nodes,q_sol_centr,p_sol_centr,reactive_power_full,active_power_full,infeasibility_output):
+    def resize_out(self,active_nodes,q_sol_centr,p_sol_centr,reactive_power_full,active_power_full,infeasibility_output,status):
 
-        active_power_sol = np.zeros_like(active_nodes)
-        reactive_power_sol = np.zeros_like(active_nodes)
+        active_power_sol = np.zeros_like((active_nodes),dtype = float)
+        reactive_power_sol = np.zeros_like((active_nodes),dtype = float)
         k = 0
         t = 0
         if any(t != None for t in q_sol_centr):
             for i in self.bus_values:
                 t +=1
                 if any(b == i for b in active_nodes):
-                    reactive_power_sol[k] = q_sol_centr[t-1]
+                    if status == 'primal infeasible':
+                        reactive_power_sol[k] = infeasibility_output["reactive_power"][t-1] 
+                    else:
+                        reactive_power_sol[k] = q_sol_centr[t-1] 
                     k += 1
                 else:
                     pass
@@ -54,7 +57,7 @@ class additional():
             for i in self.bus_values:
                 t +=1
                 if any(b == i for b in active_nodes):
-                    reactive_power_sol[k] = infeasibility_output[t-1]#reactive_power_full[t-1]
+                    reactive_power_sol[k] = infeasibility_output["reactive_power"][t-1]
                     k += 1
                 else:
                     pass
@@ -64,7 +67,10 @@ class additional():
             for i in self.bus_values:
                 t +=1
                 if any(b == i for b in active_nodes):
-                    active_power_sol[k] = p_sol_centr[t-1]
+                    if status == 'primal infeasible':
+                        active_power_sol[k] = infeasibility_output["active_power"][t-1] 
+                    else:
+                        active_power_sol[k] = p_sol_centr[t-1]
                     k += 1
                 else:
                     pass
@@ -72,7 +78,7 @@ class additional():
             for i in self.bus_values:
                 t +=1
                 if any(b == i for b in active_nodes):
-                    active_power_sol[k] = active_power_full[t-1]
+                    active_power_sol[k] = infeasibility_output["active_power"][t-1]
                     k += 1
                 else:
                     pass
