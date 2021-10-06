@@ -145,11 +145,14 @@ active_nodes = active_nodes[1:len(active_nodes)]
 active_nodes_old = active_nodes    
 reactive_power = [0.0]*len(active_nodes)
 active_power = [0.0]*len(active_nodes)
+voltage_value_old = [0.0]*len(active_nodes)
+p_old = [0.0]*len(active_nodes)
 active_ESS = active_nodes
 active_ESS_old = active_ESS
 active_power_ESS = [0.0]*len(active_ESS)
 print("active_nodes", active_nodes)
-control = Control(grid_data, active_nodes,active_ESS)
+full_nodes = list(np.array(np.matrix(ppc["gen"])[:,0]).flatten())#(np.array(grid_data["bus"])-1).tolist()
+control = Control(grid_data, active_nodes,active_ESS, full_nodes)
 [R,X] = control.initialize_control()
 
 try:
@@ -206,14 +209,22 @@ try:
                 active_nodes_old = active_nodes
                 active_ESS_old = active_ESS
 
-            [active_power,reactive_power,active_power_ESS] = control.control_(pv_input, active_power, reactive_power, R, X, active_nodes, v_gen, active_power_ESS, v_ess)
-            active_power_ESS = [0.0]*len(active_ESS)
+            if v_gen != voltage_value_old:
+                [active_power,reactive_power,active_power_ESS] = control.control_(pv_input, active_power, reactive_power, R, X, active_nodes, v_gen, active_power_ESS, v_ess)
+                active_power_ESS = [0.0]*len(active_ESS)
+                voltage_value_old = v_gen
+            else:
+                pass
+
+
+            active_power_send = np.around(active_power,decimals=2)
+            reactive_power_send = np.around(reactive_power,decimals=2)
 
             # updating dictionaries
             k = 0
             for key in pv_active:
-                active_power_dict[key] = active_power[k]
-                reactive_power_dict[key] = reactive_power[k]
+                active_power_dict[key] = active_power_send[k]
+                reactive_power_dict[key] = reactive_power_send[k]
                 k +=1
             k = 0
             for ess in active_ESS:

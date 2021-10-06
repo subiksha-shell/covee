@@ -1,4 +1,5 @@
 import numpy as np
+import coloredlogs, logging, threading
 
 class additional():
 
@@ -24,7 +25,7 @@ class additional():
                 active_power_full[t-1] = 0
                 reactive_power_full[t-1] = 0
 
-        pv_input_full = np.zeros_like(self.bus_values)
+        pv_input_full = np.zeros(n)
         k = 0
         for i in range(len(active_power_full)):
             if any(b == full_nodes[i] for b in active_nodes):
@@ -85,7 +86,8 @@ class additional():
 
         return reactive_power_sol, active_power_sol
 
-    def prioritize(self,q_sol_centr, QMIN,P_activate,n,case):        
+    def prioritize(self,q_sol_centr, QMIN,P_activate,case):        
+        n = len(q_sol_centr)  
         if case == None:
             pass
         elif case == "prioritize":
@@ -115,5 +117,7 @@ class additional():
                     P_activate[i] = 1.0
                 else:
                     P_activate[i] = 1e6
+        else:
+            logging.warning("wrong prioritize case")
 
         return P_activate

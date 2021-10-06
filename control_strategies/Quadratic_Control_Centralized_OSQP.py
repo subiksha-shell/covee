@@ -12,10 +12,11 @@ import control_strategies.quadratic_control_osqp as quadratic_control
 
 class Quadratic_Control():
 
-    def __init__(self, grid_data, num_pv,num_ESS):
+    def __init__(self, grid_data, num_pv,num_ESS,full_nodes):
         self.grid_data = grid_data	
         self.num_pv = num_pv
         self.num_bus = self.grid_data["nb"]     
+        self.full_nodes = full_nodes     
 
 
         self.QMIN = []
@@ -26,7 +27,7 @@ class Quadratic_Control():
         # Problem parameters
         # =============================================================
         self.V_MIN = 0.95  # undervoltage limit
-        self.V_MAX = 1.1  # overvoltage limit
+        self.V_MAX = 1.05  # overvoltage limit
         self.V_NOM = 1.00  # nominal voltage
 
         # DEFINE LIM
@@ -40,7 +41,7 @@ class Quadratic_Control():
     def initialize_control(self): 
 
         self.num_pv = list(np.array(self.num_pv))
-        self.bus_values = (np.array(list(range(1,self.num_bus)))).tolist()
+        self.bus_values = self.full_nodes[1:]
         calculate_matrix_full = quadratic_control.matrix_calc(self.grid_data, self.bus_values) 
         [R,X] = calculate_matrix_full.calculate()
         self.additional = quadratic_control.additional(self.bus_values)
@@ -52,7 +53,7 @@ class Quadratic_Control():
     def control_(self, pvproduction, active_power, reactive_power, R, X, active_nodes, v_tot, active_power_battery, v_ess):
 
         full_nodes = self.bus_values
-        n = len(self.bus_values)        
+        n = len(full_nodes)         
 
         [reactive_power_full, active_power_full, pv_input_full, full_active] = self.additional.resize_in(full_nodes,active_nodes,active_power,
                                                                                                                     reactive_power,pvproduction,n)
@@ -92,27 +93,21 @@ class Quadratic_Control():
         
         b_ub["active_power"] = np.transpose(np.matrix([var["PMAX"]]))
         b_ub["reactive_power"] = np.transpose(np.matrix([var["QMAX"]]))
-        b_ub["voltage"] = np.transpose(np.matrix([self.VMAX]))
 
         b_lb["active_power"] = np.transpose(np.matrix([var["PMIN"]]))
         b_lb["reactive_power"] = np.transpose(np.matrix([var["QMIN"]]))
-        b_lb["voltage"] = np.transpose(np.matrix([self.VMIN])) 
 
 
         W_Q = np.diag(1*np.eye(n)*full_active)
-        W_P = np.diag(1*np.eye(n)*full_active*np.array(self.P_activate))
+        W_P = np.diag(1*np.eye(n)*full_active*self.P_activate)
         W_V = np.diag(200*np.eye(n)*full_active)
     
 
         p_ref = var["ref"]["active_power"]
         v_ref = var["ref"]["voltage"]
 
-        ########### Matrixes  ################################## 
-        AA_V = np.concatenate((np.eye(n), -np.eye(n)))
-        BB_V = np.concatenate((b_ub["voltage"], -b_lb["voltage"]))        
-
-        
-        AA_P = np.concatenate((A["active_power"],np.eye(n)))
+        ########### Matrixes  ##################################      
+        AA_P = np.concatenate((A["active_power"],np.eye(n),np.eye(n)))
         BB_P_U = np.concatenate((b_u["active_power"],b_ub["active_power"]))
         BB_P_L = np.concatenate((b_l["active_power"],b_lb["active_power"]))
 
@@ -147,13 +142,16 @@ class Quadratic_Control():
         l = B_tot_L
         
         prob = osqp.OSQP()
-        prob.setup(P=P, q=q, A=A, l=l, u=u, verbose = False)
+        prob.setup(P=P, q=q, A=A, l=l, u=u, verbose = False, rho = 0.01)
         res = prob.solve()
         q_sol_centr = res.x[:n]
         p_sol_centr = res.x[n:2*n]
 
+        if res.info.status == 'dual infeasible':
+            logging.warning("dual infeasible")        
+
         if res.info.status == 'primal infeasible':
-            logging.debug("primal infeasible")
+            logging.warning("primal infeasible")
             if any(np.array(v_tot)[i]>np.array(self.VMAX)[i] for i in range(n)):
                 infeasibility_output["reactive_power"] = var["QMIN"] 
                 infeasibility_output["active_power"] = var["PMIN"] 
@@ -170,7 +168,7 @@ class Quadratic_Control():
         [reactive_power_sol, active_power_sol] = self.additional.resize_out(active_nodes,q_sol_centr,p_sol_centr,
                                                                             reactive_power_full,active_power_full, infeasibility_output, res.info.status)
 
-        self.P_activate = self.additional.prioritize(reactive_power_sol,var["QMIN"],self.P_activate,n,case='prioritize')
+        self.P_activate = self.additional.prioritize(reactive_power_sol,var["QMIN"],self.P_activate,case='prioritize')
 
         active_power_battery = [0.0]*len(active_power_battery)
 
