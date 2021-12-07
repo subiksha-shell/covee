@@ -39,7 +39,7 @@ class Quadratic_Control():
         self.K1 = 1.4
         for i in range(int(len(self.num_pv))):
             self.alpha[i] = self.K1*self.lim
-            self.alpha_PV[i] = 1e-3#self.K1*self.lim
+            self.alpha_PV[i] = self.K1*self.lim
         self.K2 = 1.4
         for i in range(int(len(self.num_ESS))):
             self.alpha_ESS[i] = self.K2*self.lim

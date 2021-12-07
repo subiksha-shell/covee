@@ -16,7 +16,7 @@ from pypower.api import *
 from pypower.ext2int import ext2int
 import random
 
-from control_strategies.Quadratic_Control_Centralized_OSQP import Quadratic_Control as Control
+from control_strategies.Quadratic_Control_Centralized_DualAscent import Quadratic_Control as Control
 
 from cases.LV_SOGNO import LV_SOGNO as case
 
@@ -62,7 +62,9 @@ field_styles=dict(
     name=dict(color='blue')))
 logging.info("Program Start")
 
-if bool(os.getenv('MQTT_ENABLED')):
+external_mqtt = "no"
+
+if bool(os.getenv('MQTT_ENABLED')) and external_mqtt == "yes":
     mqtt_url = str(os.getenv('MQTTURL'))
     mqtt_port = int(os.getenv('MQTTPORT'))
     mqtt_user = str(os.getenv('MQTTUSER'))
@@ -144,7 +146,7 @@ dmuObj.addElm("pv_input", simDict)
 mqttObj.attachSubscriber("/voltage_control/measuremnts/pv","json","pv_input_dict")
 # Receive pmu_meas
 dmuObj.addElm("pmu_meas", {})
-mqttObj.attachSubscriber("/edgeflex/edgepmu0/ch0/amplitude","json","pmu_input")
+mqttObj.attachSubscriber("/edgeflex/edgepmu0/ch0","json","pmu_input")
 ########################################################################################################
 #########################  Section for Sending Signal  #################################################
 ########################################################################################################
@@ -155,10 +157,11 @@ mqttObj.attachPublisher("/voltage_control/control/active_power_ESS","json","acti
 
 
 active_nodes = list(np.array(np.matrix(ppc["gen"])[:,0]).flatten())
-active_nodes = active_nodes[1:len(active_nodes)]
+active_nodes = [3,4,5,6,8,9,10,12,13,14,15,16,17,18,19]#active_nodes[1:len(active_nodes)]
 active_nodes_old = active_nodes    
 reactive_power = [0.0]*len(active_nodes)
 active_power = [0.0]*len(active_nodes)
+voltage_value_old = [0.0]*len(active_nodes)
 active_ESS = active_nodes
 active_ESS_old = active_ESS
 active_power_ESS = [0.0]*len(active_ESS)
@@ -177,8 +180,11 @@ try:
         # logging.debug(voltage_meas)
 
         pmu_received = dmuObj.getDataSubset("pmu_input")
-        logging.debug("pmu_input")
-        logging.debug(pmu_received)
+        if pmu_received:
+            logging.debug("pmu_input")
+            logging.debug(pmu_received[0]["amplitude"])
+        else:
+            pass
 
         pv_input_value = dmuObj.getDataSubset("pv_input_dict")
         pv_input_meas = pv_input_value.get("pv_input_measurements", None)
@@ -203,7 +209,7 @@ try:
             pv_nodes = list(map(lambda x: x.replace('node_',''),list(voltage_meas.keys())))
             pv_nodes = [float(i)-1 for i in pv_nodes]
 
-            print("active_nodes", active_nodes)
+            # print("active_nodes", active_nodes)
             keys = ['node_'+str(int(item+1)) for item in active_nodes]
             pv_active = (dict(zip(keys, [None]*len(active_nodes)))).keys()
             num_pv = len(list(pv_active))
@@ -213,9 +219,16 @@ try:
             pv_input = {item:pv_input_meas[item] for item in pv_active}
             v_ess = {item:voltage_meas['node_'+str(int(item)+1)] for item in active_ESS} 
 
-            v_gen = list(v_gen.values())
+            if str(os.getenv('MQTT_ENABLED')) == "true":
+                v_gen = list(v_gen.values())[:-1]
+                v_gen.extend([pmu_received[0]["amplitude"]/115.0])
+            else:
+                v_gen = list(v_gen.values())
+
             pv_input = list(pv_input.values())
             v_ess = list(v_ess.values())
+
+            print("voltage node",v_gen)
 
             ################### re-initialize if new set of active nodes ###########################
             if active_nodes != active_nodes_old or active_ESS != active_ESS_old:
@@ -224,8 +237,12 @@ try:
                 active_nodes_old = active_nodes
                 active_ESS_old = active_ESS
 
+            # if v_gen != voltage_value_old:
             [active_power,reactive_power,active_power_ESS] = control.control_(pv_input, active_power, reactive_power, R, X, active_nodes, v_gen, active_power_ESS, v_ess)
             active_power_ESS = [0.0]*len(active_ESS)
+            voltage_value_old = v_gen
+            # else:
+            #     pass
 
             # updating dictionaries
             k = 0
@@ -242,14 +259,14 @@ try:
             dmuObj.setDataSubset({"reactive_power":reactive_power_dict},"reactive_power_dict")
             dmuObj.setDataSubset({"active_power_ESS":active_power_ESS_dict},"active_power_ESS_dict")
 
-            # print("Reactive Power", reactive_power_dict)
+            print("Reactive Power", reactive_power_dict)
             # print("Active Power", active_power_dict)
             # print("Active Power ESS", active_power_ESS_dict)
 
         else:
             pass
 
-        time.sleep(0.3)
+        time.sleep(0.5)
 
 except (KeyboardInterrupt, SystemExit):
     print('simulation finished')
