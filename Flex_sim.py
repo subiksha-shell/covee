@@ -65,7 +65,7 @@ while True:
                 logging.info(" ")
         time.sleep(2)
         ###################### PREPARE THE ANSWER ###########
-        flex_output = {"variable":["active_power"],"active_power": {"vector_position":[2,3],"prediction": 1,"flex_value": [0.2,0.2]}}
+        flex_output = {"variable":["active_power", "reactive_power"],"active_power": {"vector_position":[2,3],"prediction": 1,"flex_value": [0.2,0.2]},"reactive_power": {"vector_position":[2,3],"prediction": 1,"flex_value": [0.0,0.0]}}
         print(flex_output)
         dmuObj.setDataSubset(flex_output,"flex_input")
         time.sleep(0.5)

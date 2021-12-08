@@ -171,7 +171,7 @@ activate_SoC = 0.0
 '''
 #################### Initialize ################################################
 '''
-controllable_variables = ["active_power"]
+controllable_variables = ["active_power", "reactive_power"]
 
 active_nodes =[3,4,5,6,8,9]
 if resize == "yes":
@@ -315,7 +315,6 @@ try:
             activation_nodes = [1]*len(active_nodes)      
 
             print("REFERENCE", reference)   
-
             logging.debug("v_tot " +str(v_tot))
 
             [active_power,reactive_power, active_power_ess, SoC_value, v_tot_dict] = control.control_(resize, forecast, pv_production, active_power, reactive_power,active_power_ess,R, X, R_ess, 
@@ -356,6 +355,9 @@ try:
                     active_power = {"pred_"+str(s+1): [0.0]*len(active_nodes) for s in range(predictions)}
                     active_power_ess = {"pred_"+str(s+1): [0.0]*len(active_ESS) for s in range(predictions)}
                     v_tot = [0.0]*len(v_tot)
+                    dmuObj.setDataSubset({"active_power":{node: 0.0 for node in pv_active}},"active_power_dict")
+                    dmuObj.setDataSubset({"reactive_power":{node: 0.0 for node in pv_active}},"reactive_power_dict")
+                    dmuObj.setDataSubset({"active_power_ESS":{node: 0.0 for node in pv_active}},"active_power_ESS_dict")
                 else:
                     flex_input = dmuObj.getDataSubset("flex_input")
                     logging.info("flex input " + str(flex_input))
