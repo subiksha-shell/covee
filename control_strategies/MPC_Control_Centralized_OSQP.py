@@ -113,9 +113,6 @@ class MPC_Control():
                     v_tot_dict["reactive_power"]["pred_"+str(s+1)] = np.transpose(np.matrix(v_tot))
                     v_tot_dict["active_power_ess"]["pred_"+str(s+1)] = np.transpose(np.matrix(v_tot))
                 else:
-                    # v_tot_dict["active_power"]["pred_"+str(s+1)] = np.transpose(np.matrix(v_tot))
-                    # v_tot_dict["reactive_power"]["pred_"+str(s+1)] = np.transpose(np.matrix(v_tot))
-                    # v_tot_dict["active_power_ess"]["pred_"+str(s+1)] = np.transpose(np.matrix(v_tot))
                     v_tot_dict["active_power"]["pred_"+str(s+1)] = v_tot_dict["active_power"]["pred_"+str(s)] -R*np.transpose(np.matrix([active_power_full["pred_"+str(s)]]))+R*np.transpose(np.matrix([active_power_full["pred_"+str(s+1)]]))
                     v_tot_dict["reactive_power"]["pred_"+str(s+1)] = v_tot_dict["reactive_power"]["pred_"+str(s)] -X*np.transpose(np.matrix(reactive_power_full["pred_"+str(s)]))+X*np.transpose(np.matrix(reactive_power_full["pred_"+str(s+1)]))
                     v_tot_dict["active_power_ess"]["pred_"+str(s+1)] = v_tot_dict["active_power_ess"]["pred_"+str(s)] -R_ess*np.transpose(np.matrix([active_power_ess_full["pred_"+str(s)]]))+R_ess*np.transpose(np.matrix([active_power_ess_full["pred_"+str(s+1)]]))
@@ -187,7 +184,7 @@ class MPC_Control():
             q_ref["pred_"+str(s+1)] = np.transpose(np.matrix(var["ref"]["reactive_power"]["pred_"+str(s+1)]))
             p_ess_ref["pred_"+str(s+1)] = np.transpose(np.matrix(var["ref"]["active_power_ess"]["pred_"+str(s+1)]))
 
-        logging.info("p_ref " + str(p_ref))
+        logging.info("q_ref " + str(q_ref))
         
         X_n = X#np.matrix(np.diag(np.diag(X))) 
         R_n = R#np.matrix(np.diag(np.diag(R))) 

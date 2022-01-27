@@ -65,10 +65,10 @@ field_styles=dict(
 logging.info("Program Start")
 
 if bool(os.getenv('MQTT_ENABLED')):
-    mqtt_url = "mqtt"#str(os.getenv('MQTTURL'))
-    mqtt_port = 1883#int(os.getenv('MQTTPORT'))
-    mqtt_user = ""#str(os.getenv('MQTTUSER'))
-    mqtt_password = ""#str(os.getenv('MQTTPASS'))
+    mqtt_url = str(os.getenv('MQTTURL'))
+    mqtt_port = int(os.getenv('MQTTPORT'))
+    mqtt_user = str(os.getenv('MQTTUSER'))
+    mqtt_password = str(os.getenv('MQTTPASS'))
 else:
     mqtt_url = "mqtt"
     mqtt_port = 1883
@@ -363,7 +363,7 @@ try:
                     logging.info("flex input " + str(flex_input))
                     modify_obj_function = {s: np.ones((len(active_nodes))) for s in controllable_variables}
                     for ref_var in flex_input["variable"]:
-                        modify_obj_function[ref_var][flex_input[ref_var]["vector_position"]] = 1e5
+                        modify_obj_function[ref_var][flex_input[ref_var]["vector_position"]] = 1e8
                         ref_input = np.zeros((len(active_nodes)))
                         r = 0
                         logging.info(flex_input[ref_var]["vector_position"][r])
@@ -408,6 +408,7 @@ try:
                         dmuObj.setDataSubset({"active_power_ESS":active_power_ESS_dict["pred_1"]},"active_power_ESS_dict")
 
                         print("active Power", active_power_dict["pred_1"])
+                        print("reactive Power", reactive_power_dict["pred_1"])
                     break
             else:
                 dmuObj.setDataSubset({"active_power":active_power_dict["pred_1"]},"active_power_dict")
