@@ -65,9 +65,15 @@ while True:
                 logging.info(" ")
         time.sleep(2)
         ###################### PREPARE THE ANSWER ###########
+        vector_node_name = [7,9,10]
+        vector_position = []
+        for i in range(len(flex_request["active_nodes"])):
+            if any(flex_request["active_nodes"][i]+1 == t for t in vector_node_name):
+                vector_position.append(flex_request["active_nodes"].index(flex_request["active_nodes"][i]))
+        predictions = [1]
         flex_output = {"variable":["active_power", "reactive_power"],
-                        "active_power": {"vector_position":[3,4,5],"prediction": 1,"flex_value": [0.2,0.2,0.2]},
-                        "reactive_power": {"vector_position":[3,4,5],"prediction": 1,"flex_value": [0.2,0.2,0.2]}
+                        "active_power": {"vector_position":vector_position,"prediction": predictions,"flex_value": {"pred_"+str(predictions[j]):[list(np.round(np.random.rand(1)*abs(flex_request["flex_dict"]["active_power"]["pred_"+str(predictions[j])]["node_"+str(i)]), 2))[0]  for i in vector_node_name ] for j in range(len(predictions))} },
+                        "reactive_power": {"vector_position":vector_position,"prediction": predictions,"flex_value": {"pred_"+str(predictions[j]):[list(np.round(np.random.rand(1)*abs(flex_request["flex_dict"]["reactive_power"]["pred_"+str(predictions[j])]["node_"+str(i)]), 2))[0]  for i in vector_node_name ] for j in range(len(predictions))} }
                         }
         print(flex_output)
         dmuObj.setDataSubset(flex_output,"flex_input")
