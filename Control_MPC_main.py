@@ -344,7 +344,7 @@ try:
                 # send the flex request
                 flex_request = {"active_power": active_power_dict, "reactive_power": reactive_power_dict, "active_power_ESS": active_power_ESS_dict}
                 print(flex_request)
-                dmuObj.setDataSubset({"variables":controllable_variables,"flex_dict":flex_request},"flex_request_dict")
+                dmuObj.setDataSubset({"variables":controllable_variables,"flex_dict":flex_request, "active_nodes": active_nodes},"flex_request_dict")
                 flex_response = dmuObj.getDataSubset("flex_input")
                 print("flex_response_bool", bool(flex_response))
                 if bool(flex_response) is False:
@@ -363,21 +363,22 @@ try:
                     logging.info("flex input " + str(flex_input))
                     modify_obj_function = {s: np.ones((len(active_nodes))) for s in controllable_variables}
                     for ref_var in flex_input["variable"]:
-                        modify_obj_function[ref_var][flex_input[ref_var]["vector_position"]] = 1e8
+                        modify_obj_function[ref_var][flex_input[ref_var]["vector_position"]] = 1e10
                         ref_input = np.zeros((len(active_nodes)))
                         r = 0
                         logging.info(flex_input[ref_var]["vector_position"][r])
-                        for k in range(len(active_nodes)):
-                            if k == flex_input[ref_var]["vector_position"][r]:
-                                ref_input[k] = flex_input[ref_var]["flex_value"][r]
-                                print(r+1)
-                                if (r+1) < len(flex_input[ref_var]["vector_position"]):
-                                    r += 1
+                        for i in flex_input[ref_var]["prediction"]:
+                            for k in range(len(active_nodes)):
+                                if k == flex_input[ref_var]["vector_position"][r]:
+                                    ref_input[k] = flex_input[ref_var]["flex_value"]["pred_"+str(i)][r]
+                                    print(r+1)
+                                    if (r+1) < len(flex_input[ref_var]["vector_position"]):
+                                        r += 1
+                                    else:
+                                        pass
                                 else:
-                                    pass
-                            else:
-                                pass                          
-                        reference[ref_var]["pred_"+str(flex_input[ref_var]["prediction"])] = (ref_input).tolist()
+                                    pass                          
+                            reference[ref_var]["pred_"+str(i)] = (ref_input).tolist()
                         print(reference[ref_var])
                         print(modify_obj_function)
 

@@ -218,6 +218,8 @@ class MPC_Control():
 
         for variable in variables:
             W[variable] = W[variable]*modify_obj_function[variable]
+
+        diff = np.max(A["active_power"]/A["reactive_power"])
         
         ########### Matrixes  ##################################   
             
@@ -226,8 +228,8 @@ class MPC_Control():
         BB_L["active_power"] = np.concatenate([np.concatenate((b_l["active_power"]["pred_"+str(s+1)]+A["active_power"]*p_ref["pred_"+str(s+1)],b_lb["active_power"]["pred_"+str(s+1)]+p_ref["pred_"+str(s+1)])) for s in range(pred)])
 
         AA_["reactive_power"] = block_diag(*([np.concatenate((A["reactive_power"],np.eye(n))) for s in range(pred)]))
-        BB_U["reactive_power"] = np.concatenate([np.concatenate((b_u["reactive_power"]["pred_"+str(s+1)]+A["reactive_power"]*q_ref["pred_"+str(s+1)],b_ub["reactive_power"]["pred_"+str(s+1)]+q_ref["pred_"+str(s+1)])) for s in range(pred)])
-        BB_L["reactive_power"] = np.concatenate([np.concatenate((b_l["reactive_power"]["pred_"+str(s+1)]+A["reactive_power"]*q_ref["pred_"+str(s+1)],b_lb["reactive_power"]["pred_"+str(s+1)]+q_ref["pred_"+str(s+1)])) for s in range(pred)])
+        BB_U["reactive_power"] = np.concatenate([np.concatenate((b_u["reactive_power"]["pred_"+str(s+1)]+diff*A["reactive_power"]*q_ref["pred_"+str(s+1)],b_ub["reactive_power"]["pred_"+str(s+1)]+q_ref["pred_"+str(s+1)])) for s in range(pred)])
+        BB_L["reactive_power"] = np.concatenate([np.concatenate((b_l["reactive_power"]["pred_"+str(s+1)]+diff*A["reactive_power"]*q_ref["pred_"+str(s+1)],b_lb["reactive_power"]["pred_"+str(s+1)]+q_ref["pred_"+str(s+1)])) for s in range(pred)])
 
         AA_["active_power_ess"] = block_diag(*([np.concatenate((A["active_power_ess"], np.eye(n))) for s in range(pred)]))
         BB_U["active_power_ess"] = np.concatenate([np.concatenate((b_u["active_power_ess"]["pred_"+str(s+1)]+A["active_power_ess"]*p_ess_ref["pred_"+str(s+1)],
