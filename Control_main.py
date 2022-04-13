@@ -18,8 +18,7 @@ import random
 
 from control_strategies.Quadratic_Control_Centralized_DualAscent import Quadratic_Control as Control
 
-from cases.LV_SOGNO import LV_SOGNO as case
-
+from cases.case_10_nodes import case_10_nodes as case
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--ext_port', nargs='*', required=True)
@@ -157,7 +156,7 @@ mqttObj.attachPublisher("/voltage_control/control/active_power_ESS","json","acti
 
 
 active_nodes = list(np.array(np.matrix(ppc["gen"])[:,0]).flatten())
-active_nodes = [3,4,5,6,8,9,10,12,13,14,15,16,17,18,19]#active_nodes[1:len(active_nodes)]
+active_nodes = [3,4,6,8,9]
 active_nodes_old = active_nodes    
 reactive_power = [0.0]*len(active_nodes)
 active_power = [0.0]*len(active_nodes)
@@ -168,6 +167,7 @@ active_power_ESS = [0.0]*len(active_ESS)
 print("active_nodes", active_nodes)
 control = Control(grid_data, active_nodes,active_ESS)
 [R,X] = control.initialize_control()
+VMAX = 1.05
 
 try:
     while True:
@@ -208,8 +208,9 @@ try:
             ts = time.time()*1000   # time in milliseconds
             pv_nodes = list(map(lambda x: x.replace('node_',''),list(voltage_meas.keys())))
             pv_nodes = [float(i)-1 for i in pv_nodes]
+            # active_nodes = [int(i) for i in pv_nodes]
+            # active_ESS = active_nodes
 
-            # print("active_nodes", active_nodes)
             keys = ['node_'+str(int(item+1)) for item in active_nodes]
             pv_active = (dict(zip(keys, [None]*len(active_nodes)))).keys()
             num_pv = len(list(pv_active))
@@ -232,17 +233,14 @@ try:
 
             ################### re-initialize if new set of active nodes ###########################
             if active_nodes != active_nodes_old or active_ESS != active_ESS_old:
-                control = Control(grid_data, active_nodes)
+                control = Control(grid_data, active_nodes, active_ESS)
                 [R,X] = control.initialize_control()
                 active_nodes_old = active_nodes
                 active_ESS_old = active_ESS
 
-            # if v_gen != voltage_value_old:
-            [active_power,reactive_power,active_power_ESS] = control.control_(pv_input, active_power, reactive_power, R, X, active_nodes, v_gen, active_power_ESS, v_ess)
+            [active_power,reactive_power,active_power_ESS] = control.control_(pv_input, active_power, reactive_power, R, X, active_nodes, v_gen, active_power_ESS, v_ess, VMAX)
             active_power_ESS = [0.0]*len(active_ESS)
             voltage_value_old = v_gen
-            # else:
-            #     pass
 
             # updating dictionaries
             k = 0

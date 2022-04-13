@@ -49,10 +49,12 @@ class Quadratic_Control():
         
         return X,R
     
-    def control_(self, PV_list,active_power_PV,q_PV, R, X, active_nodes, v_gen, active_power_battery, v_ess):
+    def control_(self, PV_list,active_power_PV,q_PV, R, X, active_nodes, v_gen, active_power_battery, v_ess, VMAX):
         ############# RUN QUADRATIC VOLTAGE CONTROL ###############################################
         # By changing the ration alpha/alpha_p we can control if we want use
         # more the PV or the batteries for the regulation (for example depending on the SOC)
+
+        print(v_gen)
 
         self.reactive_power = q_PV
         self.active_power_PV = active_power_PV
@@ -60,11 +62,11 @@ class Quadratic_Control():
 
         # REACTIVE POWER CONTROL PV
         # ================================================================================================
-        [self.reactive_power, self.mu_min] = self.control_reactive_power.Voltage_Control(PV_list, q_PV, v_gen, self.alpha)
+        [self.reactive_power, self.mu_min] = self.control_reactive_power.Voltage_Control(PV_list, q_PV, v_gen, self.alpha, VMAX)
 
         # ACTIVE POWER CONTROL PV
         # ================================================================================================
-        self.active_power_PV = self.control_active_power_PV.Voltage_Control(PV_list, active_power_PV, v_gen, self.alpha_PV)
+        self.active_power_PV = self.control_active_power_PV.Voltage_Control(PV_list, active_power_PV, v_gen, self.alpha_PV, VMAX)
         #print("alpha_PV",self.alpha_PV)
         
         for i in range(len(self.num_pv)):	
@@ -90,7 +92,7 @@ class Quadratic_Control():
 
         # COORDINATED ACTIVE POWER CONTROL (BATT)
         # ==========================================================================================================================================
-        [self.active_power_battery, self.xi_min]  = self.control_active_power_ESS.Voltage_Control(self.active_power_battery, v_ess, self.alpha_ESS)
+        [self.active_power_battery, self.xi_min]  = self.control_active_power_ESS.Voltage_Control(self.active_power_battery, v_ess, self.alpha_ESS, VMAX)
         # for i in range(len(self.num_pv)):
         #     if self.xi_min[i] !=0 and i != 0:
         #         self.alpha_PV[i] = self.K1*self.lim

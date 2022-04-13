@@ -76,7 +76,8 @@ class Quadratic_Active_Power_Batt:
         return self.p_batt, self.alpha_p, self.xi_min,self.X	
 
 
-    def Voltage_Control(self, p_batt, v_bat, alpha_P):
+    def Voltage_Control(self, p_batt, v_bat, alpha_P, VMAX):
+        self.V_MAX2 = VMAX
         self.v_bat = v_bat
         self.p_batt = p_batt
         self.alpha_p = alpha_P
