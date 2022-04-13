@@ -232,6 +232,12 @@ PV_list = profiles.read_csv()
 
 k_pred = 1
 
+flex_receive_list = []
+voltage_list = []
+iteration = 0
+active_power_list_dict = {"pred_"+str(s+1): []  for s in range(predictions)}
+reactive_power_list_dict = {"pred_"+str(s+1): []  for s in range(predictions)}
+
 try:
     while True:
 
@@ -324,10 +330,14 @@ try:
 
             time.sleep(0.5)
             k_pred +=1
-            
+
+           
             # updating dictionaries          
             for s in range(predictions):
                 k = 0
+                active_power_list_dict["pred_"+str(s+1)].append([active_power["pred_"+str(s+1)],iteration])
+                reactive_power_list_dict["pred_"+str(s+1)].append([reactive_power["pred_"+str(s+1)],iteration])
+
                 active_power_dict.update({"pred_"+str(s+1): {}})
                 reactive_power_dict.update({"pred_"+str(s+1): {}})
                 active_power_ESS_dict.update({"pred_"+str(s+1): {}})
@@ -358,8 +368,11 @@ try:
                     dmuObj.setDataSubset({"active_power":{node: 0.0 for node in pv_active}},"active_power_dict")
                     dmuObj.setDataSubset({"reactive_power":{node: 0.0 for node in pv_active}},"reactive_power_dict")
                     dmuObj.setDataSubset({"active_power_ESS":{node: 0.0 for node in pv_active}},"active_power_ESS_dict")
+                    flex_receive_list.append([0.0,iteration])
+
                 else:
                     flex_input = dmuObj.getDataSubset("flex_input")
+                    flex_receive_list.append([1.0,iteration])
                     logging.info("flex input " + str(flex_input))
                     modify_obj_function = {s: np.ones((len(active_nodes))) for s in controllable_variables}
                     for ref_var in flex_input["variable"]:
@@ -381,7 +394,7 @@ try:
                             reference[ref_var]["pred_"+str(i)] = (ref_input).tolist()
                         print(reference[ref_var])
                         print(modify_obj_function)
-
+                    
 
                     [active_power,reactive_power, active_power_ess, SoC_value, v_tot_dict] = control.control_(resize, forecast, pv_production, active_power, reactive_power,active_power_ess,R, X, R_ess, 
                                                                     active_nodes, v_tot, VMAX, reference,activation_nodes, predictions, controllable_variables, k_pred, SoC_value, SoC_ref, activate_SoC, modify_obj_function)
@@ -391,6 +404,22 @@ try:
                     # updating dictionaries          
                     for s in range(predictions):
                         k = 0
+                        active_power_list_dict["pred_"+str(s+1)].append([active_power["pred_"+str(s+1)],iteration])
+                        reactive_power_list_dict["pred_"+str(s+1)].append([reactive_power["pred_"+str(s+1)],iteration])
+                        rows = reactive_power_list_dict["pred_"+str(s+1)]
+                        with open('/covee/csv_files/results/reactive_power_list_pred_'+str(s+1)+'.csv', 'w+', encoding="ISO-8859-1", newline='') as csv_file:
+                            wr = csv.writer(csv_file)
+                            for row in rows:
+                                wr.writerow(row)
+                        csv_file.close()
+
+                        rows = active_power_list_dict["pred_"+str(s+1)]
+                        with open('/covee/csv_files/results/active_power_list_pred_'+str(s+1)+'.csv', 'w+', encoding="ISO-8859-1", newline='') as csv_file:
+                            wr = csv.writer(csv_file)
+                            for row in rows:
+                                wr.writerow(row)
+                        csv_file.close() 
+
                         active_power_dict.update({"pred_"+str(s+1): {}})
                         reactive_power_dict.update({"pred_"+str(s+1): {}})
                         active_power_ESS_dict.update({"pred_"+str(s+1): {}})
@@ -410,6 +439,13 @@ try:
 
                         print("active Power", active_power_dict["pred_1"])
                         print("reactive Power", reactive_power_dict["pred_1"])
+                    
+                    rows = flex_receive_list
+                    with open('/covee/csv_files/results/flex_receive_list.csv', 'w+', encoding="ISO-8859-1", newline='') as csv_file:
+                        wr = csv.writer(csv_file)
+                        for row in rows:
+                            wr.writerow(row)
+                    csv_file.close()
                     break
             else:
                 dmuObj.setDataSubset({"active_power":active_power_dict["pred_1"]},"active_power_dict")
@@ -420,6 +456,7 @@ try:
             print("Reactive Power", reactive_power_dict["pred_1"])
             print("Active Power", active_power_dict["pred_1"])
             print("Active Power ESS", active_power_ESS_dict["pred_1"])
+            iteration +=1
 
         else:
             k_pred=0
@@ -427,5 +464,26 @@ try:
         time.sleep(2)
 
 except (KeyboardInterrupt, SystemExit):
+    rows = reactive_power_list
+    with open('/covee/csv_files/results/reactive_power_list.csv', 'w+', encoding="ISO-8859-1", newline='') as csv_file:
+        wr = csv.writer(csv_file)
+        for row in rows:
+            wr.writerow(row)
+    csv_file.close()
+
+    rows = active_power_list
+    with open('/covee/csv_files/results/active_power_list.csv', 'w+', encoding="ISO-8859-1", newline='') as csv_file:
+        wr = csv.writer(csv_file)
+        for row in rows:
+            wr.writerow(row)
+    csv_file.close()
+
+    rows = flex_receive_list
+    with open('/covee/csv_files/results/flex_receive_list.csv', 'w+', encoding="ISO-8859-1", newline='') as csv_file:
+        wr = csv.writer(csv_file)
+        for row in rows:
+            wr.writerow(row)
+    csv_file.close()
+    
     print('simulation finished')
 

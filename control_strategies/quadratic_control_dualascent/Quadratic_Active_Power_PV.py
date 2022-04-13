@@ -67,7 +67,8 @@ class Quadratic_Active_Power_PV:
         return self.p_PV, self.alpha_p,self.X
 
 
-    def Voltage_Control(self, pv_production, p_PV, v_gen, alpha):
+    def Voltage_Control(self, pv_production, p_PV, v_gen, alpha, VMAX):
+        self.V_MAX	= VMAX
         self.pvproduction = pv_production
         self.v_gen = v_gen
         self.p_PV = p_PV

@@ -66,7 +66,9 @@ class Quadratic_Reactive_Power:
         return self.q, self.mu_min,self.X
 
 
-    def Voltage_Control(self, pv_production, reactive_power, v_gen, alpha): 
+    def Voltage_Control(self, pv_production, reactive_power, v_gen, alpha, VMAX): 
+
+        self.V_MAX = VMAX
         self.pvproduction = pv_production
         self.q = reactive_power
         self.v_gen = v_gen
