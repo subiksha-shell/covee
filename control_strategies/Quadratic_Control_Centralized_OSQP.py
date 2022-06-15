@@ -7,7 +7,7 @@ import osqp
 from scipy import sparse
 import coloredlogs, logging, threading
 
-import control_strategies.quadratic_control_osqp as quadratic_control
+import control_strategies.quadratic_control as quadratic_control
 
 
 class Quadratic_Control():
@@ -26,7 +26,7 @@ class Quadratic_Control():
         # Problem parameters
         # =============================================================
         self.V_MIN = 0.95  # undervoltage limit
-        self.V_MAX = 1.1  # overvoltage limit
+        self.V_MAX = 1.05  # overvoltage limit
         self.V_NOM = 1.00  # nominal voltage
 
         # DEFINE LIM

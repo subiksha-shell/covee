@@ -4,7 +4,12 @@
 from numpy import array
 import numpy as np
 
-def case_10_nodes():
+class case_():
+
+  def __init__(self):
+    pass
+
+  def case(self):
 
     ppc = {"version": '2'}
 
@@ -19,7 +24,7 @@ def case_10_nodes():
     ppc["VMAX"] = VMAX
     ppc["VMIN"] = VMIN
 
-    baseKV = 1;
+    baseKV = 1
     
     ## bus data
     # bus_i type Pd Qd Gs Bs area Vm Va baseKV zone Vmax Vmin

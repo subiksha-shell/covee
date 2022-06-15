@@ -3,7 +3,12 @@
 
 from numpy import array
 
-def case_cigre():
+class case_():
+
+  def __init__(self):
+    pass
+
+  def case(self):
 
     ppc = {"version": '2'}
 

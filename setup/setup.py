@@ -10,7 +10,9 @@ requiredPackages = [#should only contain third party pakages
     "requests",
     "paho-mqtt",
     "cvxopt",
-    "osqp"
+    "python-dotenv",
+    "osqp",
+    "cvxpy"
 ],
 
 setup(
