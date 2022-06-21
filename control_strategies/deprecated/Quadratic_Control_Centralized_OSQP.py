@@ -5,8 +5,9 @@ from scipy.linalg import block_diag
 import os
 import osqp
 from scipy import sparse
+import coloredlogs, logging, threading
 
-import control_strategies.quadratic_control_osqp as quadratic_control
+import control_strategies.quadratic_control as quadratic_control
 
 
 class Quadratic_Control():
@@ -25,7 +26,7 @@ class Quadratic_Control():
         # Problem parameters
         # =============================================================
         self.V_MIN = 0.95  # undervoltage limit
-        self.V_MAX = 1.1  # overvoltage limit
+        self.V_MAX = 1.05  # overvoltage limit
         self.V_NOM = 1.00  # nominal voltage
 
         # DEFINE LIM
@@ -65,6 +66,7 @@ class Quadratic_Control():
         var["PMAX"] = np.array([0.0+1e-6 for i in range(int(n))])
         var["VNOM"] = {"active_power": np.transpose(np.matrix(v_tot))-R*np.transpose(np.matrix([active_power_full])), 
                         "reactive_power": np.transpose(np.matrix(v_tot))-X*np.transpose(np.matrix([reactive_power_full]))}
+        infeasibility_output = {"active_power": None, "reactive_power": None}
 
       
         self.VMAX = [self.V_MAX] * int(n)       # create array of VMAX
@@ -137,18 +139,20 @@ class Quadratic_Control():
         res = prob.solve()
         q_sol_centr = res.x
 
+        if res.info.status == 'primal infeasible':
+            logging.warning('primal infeasible')
         if any(np.array(v_tot)[i]-np.array(self.VMAX)[i]>0.01 for i in range(n)) and res.info.status == 'primal infeasible':
-            infeasibility_output = var["QMIN"] 
+            infeasibility_output["reactive_power"] = var["QMIN"] 
         elif any(np.array(v_tot)[i]-np.array(self.VMIN)[i]<0.01 for i in range(n)) and res.info.status == 'primal infeasible':
-            infeasibility_output = var["QMAX"]
+            infeasibility_output["reactive_power"] = var["QMAX"]
         else:
-            infeasibility_output = reactive_power_full
+            infeasibility_output["reactive_power"] = reactive_power_full
 
         prob.update(Px=P_P.data, q=q_P, Ax=A_P.data, l=l_P, u=u_P)
         res = prob.solve()
         p_sol_centr = res.x
 
-        [reactive_power_sol, active_power_sol] = self.additional.resize_out(active_nodes,q_sol_centr,p_sol_centr,reactive_power_full,active_power_full, infeasibility_output)
+        [reactive_power_sol, active_power_sol] = self.additional.resize_out(active_nodes,q_sol_centr,p_sol_centr,reactive_power_full,active_power_full, infeasibility_output["reactive_power"])
 
         self.P_activate = self.additional.prioritize(reactive_power_sol,var["QMIN"],self.P_activate,n,case='prioritize')
 

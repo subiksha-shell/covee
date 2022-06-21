@@ -13,7 +13,12 @@
 
 from numpy import array
 
-def ieee124_2compensators():
+class case_():
+
+  def __init__(self):
+    pass
+
+  def case(self):
 
 	ppc = {"version": '2'}
 

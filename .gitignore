@@ -16,10 +16,12 @@ csv_files/*.csv
 *.vscode/
 *.ipynb_checkpoints/
 csv_files/results/
-plots/
+csv_files/plots/
 powerflow/powerflow
 pv_centralized/covee
 venv_ext
 covee
 *.csv
+*.eps
+*.png
 

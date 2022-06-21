@@ -36,8 +36,8 @@ class Quadratic_Active_Power_Batt:
         self.V_MIN = 0.9  # undervoltage limit
         self.V_MAX = 1.5 # overvoltage limit
 
-        self.V_MIN2 = 0.9  # undervoltage limit 2
-        self.V_MAX2 = 1.1  # overvoltage limit 2
+        self.V_MIN = 0.9  # undervoltage limit 2
+        self.V_MAX = 1.1  # overvoltage limit 2
 
         self.PMIN = []
         self.PMAX = []
@@ -55,8 +55,8 @@ class Quadratic_Active_Power_Batt:
             self.PMIN.append(-3.0)
             self.PMAX.append(+3.0)
 
-        self.VMAX_BATT = [self.V_MAX2] * int(len(self.n_battery))
-        self.VMIN_BATT = [self.V_MIN2] * int(len(self.n_battery))
+        self.VMAX_BATT = [self.V_MAX] * int(len(self.n_battery))
+        self.VMIN_BATT = [self.V_MIN] * int(len(self.n_battery))
 
         # Control Parameters
         # ==============================================================
@@ -76,7 +76,9 @@ class Quadratic_Active_Power_Batt:
         return self.p_batt, self.alpha_p, self.xi_min,self.X	
 
 
-    def Voltage_Control(self, p_batt, v_bat, alpha_P):
+    def Voltage_Control(self, p_batt, v_bat, alpha_P, VMIN ,VMAX):
+        self.V_MAX = VMAX
+        self.V_MIN = VMIN
         self.v_bat = v_bat
         self.p_batt = p_batt
         self.alpha_p = alpha_P
@@ -88,8 +90,8 @@ class Quadratic_Active_Power_Batt:
             self.PMAX[i] = (0.8)
 
 
-        self.VMAX_BATT = [self.V_MAX2] * int(len(self.n_battery))
-        self.VMIN_BATT = [self.V_MIN2] * int(len(self.n_battery))        
+        self.VMAX_BATT = [self.V_MAX] * int(len(self.n_battery))
+        self.VMIN_BATT = [self.V_MIN] * int(len(self.n_battery))        
 
         ############# CALCULATE SOC/BATTERY ACTIVE POWER CONTROL ########################################
         lan_multi_p = algorithms_controllable_loads(lamda_max=self.lamda_p_max, lamda_min=self.lamda_p_min, alpha=self.alpha_p, v=self.v_bat,

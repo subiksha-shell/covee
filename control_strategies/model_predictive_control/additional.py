@@ -6,25 +6,34 @@ class additional():
         self.bus_values = bus_values
 
 
-    def resize_in(self, full_nodes,active_nodes,active_power,reactive_power,pvproduction,n):
+    def resize_in(self, full_nodes,active_nodes,active_power,reactive_power,active_power_ess,pvproduction,n):
         k = 0
         t = 0
         full_active = np.zeros_like(self.bus_values)
         active_power_full = np.zeros(n)
         reactive_power_full = np.zeros(n)
+        active_power_ess_full = np.zeros(n)
+        #activation_nodes_full = np.zeros(n)
+        # pv_input_full = np.zeros(n)
         for i in self.bus_values:
             t += 1
             if any(b == full_nodes[t-1] for b in active_nodes):
                 full_active[t-1] = 1
                 active_power_full[t-1] = 1.0*np.array(active_power)[k]
                 reactive_power_full[t-1] = reactive_power[k]
+                active_power_ess_full[t-1] = 1.0*np.array(active_power_ess)[k]
+                #activation_nodes_full[t-1] = activation_nodes[k]
+                # pv_input_full[t-1] = pvproduction[k]
                 k += 1
             else:
                 full_active[t-1] = 0
                 active_power_full[t-1] = 0
                 reactive_power_full[t-1] = 0
+                active_power_ess_full[t-1] = 0
+                #activation_nodes_full[t-1] = 0
+                # pv_input_full[t-1] = 0
 
-        pv_input_full = np.zeros_like(self.bus_values)
+        pv_input_full = np.zeros(n)#pv_input_full = np.zeros_like(self.bus_values)
         k = 0
         for i in range(len(active_power_full)):
             if any(b == full_nodes[i] for b in active_nodes):
@@ -33,13 +42,14 @@ class additional():
             else:
                 pv_input_full[i] = 0
 
-        return  reactive_power_full, active_power_full, pv_input_full, full_active  
+        return  reactive_power_full, active_power_full,active_power_ess_full, pv_input_full, full_active
 
 
-    def resize_out(self, active_nodes,q_sol_centr,p_sol_centr,reactive_power_full,active_power_full,infeasibility_output):
+    def resize_out(self, active_nodes,q_sol_centr,p_sol_centr,p_ess_sol_centr,reactive_power_full,active_power_full, active_power_ess_full, infeasibility_output):
 
-        active_power_sol = np.zeros_like(active_nodes)
-        reactive_power_sol = np.zeros_like(active_nodes)
+        active_power_sol = np.zeros_like((active_nodes),dtype = float)
+        reactive_power_sol = np.zeros_like((active_nodes),dtype = float)
+        active_power_ess_sol = np.zeros_like((active_nodes),dtype = float)
         k = 0
         t = 0
         if any(t != None for t in q_sol_centr):
@@ -54,7 +64,7 @@ class additional():
             for i in self.bus_values:
                 t +=1
                 if any(b == i for b in active_nodes):
-                    reactive_power_sol[k] = infeasibility_output[t-1]#reactive_power_full[t-1]
+                    reactive_power_sol[k] = infeasibility_output["reactive_power"][t-1]
                     k += 1
                 else:
                     pass
@@ -72,14 +82,33 @@ class additional():
             for i in self.bus_values:
                 t +=1
                 if any(b == i for b in active_nodes):
-                    active_power_sol[k] = active_power_full[t-1]
+                    active_power_sol[k] = infeasibility_output["active_power"][t-1]
+                    k += 1
+                else:
+                    pass
+        k = 0
+        t = 0
+        if any(t != None for t in p_ess_sol_centr):
+            for i in self.bus_values:
+                t +=1
+                if any(b == i for b in active_nodes):
+                    active_power_ess_sol[k] = p_ess_sol_centr[t-1]
+                    k += 1
+                else:
+                    pass
+        else:
+            for i in self.bus_values:
+                t +=1
+                if any(b == i for b in active_nodes):
+                    active_power_ess_sol[k] = infeasibility_output["active_power_ess"][t-1]
                     k += 1
                 else:
                     pass
 
-        return reactive_power_sol, active_power_sol
+        return reactive_power_sol, active_power_sol, active_power_ess_sol
 
-    def prioritize(self,q_sol_centr, QMIN,P_activate,n,case):        
+    def prioritize(self,q_sol_centr, QMIN,P_activate,case):
+        n = len(q_sol_centr)        
         if case == None:
             pass
         elif case == "prioritize":

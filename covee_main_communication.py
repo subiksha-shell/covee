@@ -1,5 +1,4 @@
 import numpy as np 
-import csv
 import os
 import coloredlogs, logging, threading
 from threading import Thread
@@ -7,50 +6,26 @@ from submodules.dmu.dmu import dmu
 from submodules.dmu.httpSrv import httpSrv
 from submodules.dmu.mqttClient import mqttClient
 import time
-import sys
-import requests
-import json
 import csv
-import argparse
+import sys
+import json
 from pypower.api import *
 from pypower.ext2int import ext2int
-import random
+import control_strategies.utils as utils
+from importlib import import_module
 
-from control_strategies.Quadratic_Control_Centralized_OSQP import Quadratic_Control as Control
+# Set Control Strategy and Case
+##################################################################
+with open("../conf.json", "r") as f:
+    conf_dict = json.load(f)
 
-from cases.LV_SOGNO import LV_SOGNO as case
-
-
-parser = argparse.ArgumentParser()
-parser.add_argument('--ext_port', nargs='*', required=True)
-args = vars(parser.parse_args())
-ext_port = args['ext_port'][0]
-
-
-def system_info(ppc):
-    # Gather information about the system
-    # =============================================================
-    baseMVA, bus, gen, branch, cost, VMAX, VMIN = \
-        ppc["baseMVA"], ppc["bus"], ppc["gen"], ppc["branch"], ppc["gencost"], ppc["VMAX"], ppc["VMIN"]
-
-    nb = bus.shape[0]                        # number of buses
-    ng = gen.shape[0]                        # number of generators
-    nbr = branch.shape[0]                    # number of branches
-
-    for i in range(int(nb)):
-        if bus[i][BUS_TYPE] == 3.0:
-            pcc = i
-        else:
-            pass
-
-    grid_data = {"baseMVA":baseMVA,"branch":branch,"pcc":pcc,"bus":bus,"gen":gen,"nb":nb,"ng":ng,"nbr":nbr}
-
-    return grid_data
-
-ppc = case()
-ppc = ext2int(ppc)      # convert to continuous indexing starting from 0
-BUS_TYPE = 1
-grid_data = system_info(ppc)
+module_obj = utils.select(conf_dict)
+Quadratic_Control = module_obj.select_control()
+# # Choose the case (maybe it can be a env variable)
+sys.path.insert(0,'../')
+from cases.case_10_nodes import case_10_nodes as case
+sys.path.remove('../')
+##################################################################
 
 coloredlogs.install(level='DEBUG',
 fmt='%(asctime)s %(levelname)-8s %(name)s[%(process)d] %(message)s',
@@ -61,18 +36,31 @@ field_styles=dict(
     programname=dict(color='cyan'),
     name=dict(color='blue')))
 logging.info("Program Start")
+#####################################################################
 
 
 ############################ Start the Server #######################################################
+
+external_mqtt = conf_dict["EXT_MQTT"]
+if bool(os.getenv('MQTT_ENABLED')) and external_mqtt == "yes":
+    mqtt_url = str(os.getenv('MQTTURL'))
+    mqtt_port = int(os.getenv('MQTTPORT'))
+    mqtt_user = str(os.getenv('MQTTUSER'))
+    mqtt_password = str(os.getenv('MQTTPASS'))
+else:
+    mqtt_url = "mqtt"
+    mqtt_port = 1883
+    mqtt_password = ""
+    mqtt_user = ""
 
 ''' Initialize objects '''
 dmuObj = dmu()
 
 ''' Start mqtt client '''
-mqttObj = mqttClient("mqtt", dmuObj)
+mqttObj = mqttClient(mqtt_url, dmuObj, mqtt_port, mqtt_user, mqtt_password)
 
 ''' Start http server '''
-httpSrvThread2 = threading.Thread(name='httpSrv',target=httpSrv, args=("0.0.0.0", int(ext_port) ,dmuObj,))
+httpSrvThread2 = threading.Thread(name='httpSrv',target=httpSrv, args=("0.0.0.0", int(conf_dict["EXT_PORT_COVEE"]) ,dmuObj,))
 httpSrvThread2.start()
 
 time.sleep(2.0)
@@ -101,14 +89,16 @@ active_power_dict = {}
 reactive_power_dict = {}
 active_power_ESS_dict = {}
 pv_input_dict = {}
+pmu_input = {}
 
-# add the simulation dictionary to mmu object
+# add the simulation dictionary to dmu object
 dmuObj.addElm("simDict", simDict)
 dmuObj.addElm("voltage_dict", voltage_dict)
 dmuObj.addElm("active_power_dict", active_power_dict)
 dmuObj.addElm("reactive_power_dict", reactive_power_dict)
 dmuObj.addElm("pv_input_dict", pv_input_dict)
 dmuObj.addElm("active_power_ESS_dict", active_power_ESS_dict)
+dmuObj.addElm("pmu_input", pmu_input)
 
 ########################################################################################################
 #########################  Section for Receiving Signal  ###############################################
@@ -130,7 +120,9 @@ mqttObj.attachSubscriber("/voltage_control/measuremnts/voltage","json","voltage_
 # Receive pv_input
 dmuObj.addElm("pv_input", simDict)
 mqttObj.attachSubscriber("/voltage_control/measuremnts/pv","json","pv_input_dict")
-
+# Receive pmu_meas
+dmuObj.addElm("pmu_meas", {})
+mqttObj.attachSubscriber("/edgeflex/edgepmu0/ch0","json","pmu_input")
 ########################################################################################################
 #########################  Section for Sending Signal  #################################################
 ########################################################################################################
@@ -140,17 +132,26 @@ mqttObj.attachPublisher("/voltage_control/control/reactive_power","json","reacti
 mqttObj.attachPublisher("/voltage_control/control/active_power_ESS","json","active_power_ESS_dict")
 
 
-active_nodes = list(np.array(np.matrix(ppc["gen"])[:,0]).flatten())
-active_nodes = active_nodes[1:len(active_nodes)]
-active_nodes_old = active_nodes    
-reactive_power = [0.0]*len(active_nodes)
-active_power = [0.0]*len(active_nodes)
-active_ESS = active_nodes
+'''
+#########################################################################################################
+#########################################################################################################
+#########################################################################################################
+'''
+ppc = case()
+ppc = ext2int(ppc)      # convert to continuous indexing starting from 0
+BUS_TYPE = 1
+additional = utils.additional() 
+[grid_data,reactive_power,active_power,active_power_ESS] = additional.system_info(ppc,BUS_TYPE, conf_dict["CONTROL_DATA"]["active_nodes"], conf_dict["CONTROL_DATA"]["active_ESS"])
+
+active_nodes = conf_dict["CONTROL_DATA"]["active_nodes"] 
+active_ESS = conf_dict["CONTROL_DATA"]["active_ESS"]
+active_nodes_old = active_nodes
 active_ESS_old = active_ESS
-active_power_ESS = [0.0]*len(active_ESS)
 print("active_nodes", active_nodes)
-control = Control(grid_data, active_nodes,active_ESS)
+
+control = Quadratic_Control.Quadratic_Control(grid_data, active_nodes ,active_ESS, conf_dict["CONTROL_DATA"])
 [R,X] = control.initialize_control()
+VMAX = conf_dict["CONTROL_DATA"]["VMAX"]
 
 try:
     while True:
@@ -159,13 +160,16 @@ try:
         active_power_ESS_dict = {}
         voltage_value = dmuObj.getDataSubset("voltage_dict")
         voltage_meas = voltage_value.get("voltage_measurements", None)
-        logging.debug("voltage_measurements")
-        logging.debug(voltage_meas)
+
+        pmu_received = dmuObj.getDataSubset("pmu_input")
+        if pmu_received:
+            logging.debug("pmu_input")
+            logging.debug(pmu_received[0]["amplitude"])
+        else:
+            pass
 
         pv_input_value = dmuObj.getDataSubset("pv_input_dict")
         pv_input_meas = pv_input_value.get("pv_input_measurements", None)
-        logging.debug("pv_input_measurements")
-        logging.debug(pv_input_meas)
 
         active_nodes = dmuObj.getDataSubset("simDict","active_nodes")
         if not active_nodes:
@@ -185,7 +189,6 @@ try:
             pv_nodes = list(map(lambda x: x.replace('node_',''),list(voltage_meas.keys())))
             pv_nodes = [float(i)-1 for i in pv_nodes]
 
-            print("active_nodes", active_nodes)
             keys = ['node_'+str(int(item+1)) for item in active_nodes]
             pv_active = (dict(zip(keys, [None]*len(active_nodes)))).keys()
             num_pv = len(list(pv_active))
@@ -195,43 +198,56 @@ try:
             pv_input = {item:pv_input_meas[item] for item in pv_active}
             v_ess = {item:voltage_meas['node_'+str(int(item)+1)] for item in active_ESS} 
 
-            v_gen = list(v_gen.values())
+            if str(os.getenv('MQTT_ENABLED')) == "true":
+                v_gen = list(v_gen.values())[:-1]
+                v_gen.extend([pmu_received[0]["amplitude"]/115.0])
+            else:
+                v_gen = list(v_gen.values())
+
             pv_input = list(pv_input.values())
             v_ess = list(v_ess.values())
 
+            print("voltage node",v_gen)
+
             ################### re-initialize if new set of active nodes ###########################
             if active_nodes != active_nodes_old or active_ESS != active_ESS_old:
-                control = Control(grid_data, active_nodes)
+                control = Quadratic_Control.Quadratic_Control(grid_data, active_nodes, active_ESS)
                 [R,X] = control.initialize_control()
                 active_nodes_old = active_nodes
                 active_ESS_old = active_ESS
 
-            [active_power,reactive_power,active_power_ESS] = control.control_(pv_input, active_power, reactive_power, R, X, active_nodes, v_gen, active_power_ESS, v_ess)
-            active_power_ESS = [0.0]*len(active_ESS)
+            #########################################################################################
+            ###################### Calculate the control output #####################################
+            #########################################################################################
+            output = control.control_(pv_input, active_power, reactive_power, R, X, active_nodes, v_gen, active_power_ESS, v_ess, VMAX)
 
-            # updating dictionaries
+            # update and send dictionaries
+            #########################################################################################
             k = 0
-            for key in pv_active:
-                active_power_dict[key] = active_power[k]
-                reactive_power_dict[key] = reactive_power[k]
-                k +=1
+            if output["DG"]["reactive_power"]:
+                for key in pv_active:
+                    reactive_power_dict[key] = output["DG"]["reactive_power"][k]
+                    k +=1
+                dmuObj.setDataSubset({"reactive_power":reactive_power_dict},"reactive_power_dict")
             k = 0
-            for ess in active_ESS:
-                active_power_ESS_dict['node_'+str(int(ess)+1)] = active_power_ESS[k]
-                k+=1
- 
-            dmuObj.setDataSubset({"active_power":active_power_dict},"active_power_dict")
-            dmuObj.setDataSubset({"reactive_power":reactive_power_dict},"reactive_power_dict")
-            dmuObj.setDataSubset({"active_power_ESS":active_power_ESS_dict},"active_power_ESS_dict")
+            if output["DG"]["active_power"]:
+                for key in pv_active:
+                    active_power_dict[key] = output["DG"]["active_power"][k]
+                    k +=1
+                dmuObj.setDataSubset({"active_power":active_power_dict},"active_power_dict")
+            k = 0
+            if output["ESS"]["active_power"]:
+                for ess in active_ESS:
+                    active_power_ESS_dict['node_'+str(int(ess)+1)] = output["ESS"]["active_power"][k]
+                    k+=1          
+                dmuObj.setDataSubset({"active_power_ESS":active_power_ESS_dict},"active_power_ESS_dict")
 
-            print("Reactive Power", reactive_power_dict)
-            print("Active Power", active_power_dict)
-            print("Active Power ESS", active_power_ESS_dict)
+            print("reactive_power_dict", reactive_power_dict)
 
         else:
             pass
 
-        time.sleep(0.3)
+        time.sleep(0.5)
 
 except (KeyboardInterrupt, SystemExit):
     print('simulation finished')

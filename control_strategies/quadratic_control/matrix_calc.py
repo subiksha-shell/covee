@@ -4,35 +4,34 @@ from pypower.idx_bus import BUS_I
 from pypower.makeYbus import makeYbus
 from pypower.idx_bus import BUS_TYPE
 from scipy.sparse import csr_matrix
-import time
 
-class algorithms:
+class matrix_calc():
 
-    def __init__(self, **kwargs):
-        self.data = []
-        for key in kwargs:
-            self.data.append(kwargs[key])
-        self.slope = []
-        self.q = []
+    def __init__(self,grid_data, num_pv):
+        self.grid_data = grid_data
+        self.num_pv = num_pv
 
-    def g_parameter(self):
+    def calculate(self):
+        # Input Data
+        # =============================================================
         '''
-        :param kwargs:
-        data 0 : baseMVA
-        data 1 : bus
+        data 0 : bus
+        data 1 : baseMVA
         data 2 : branch
-        data 3 : c
-        data 4 : ppc
-        data 5 : nbr
+        data 3 : pcc
+        data 4 : nb
+        data 5 : ng
+        data 6 : nbr
+        data 7 : c
         '''
-        baseMVA = self.data[0]
-        bus = self.data[1]
-        branch = self.data[2]
-        c = self.data[3]
-        pcc = int(self.data[4])
-        nbr = self.data[5]
-
-        nb = bus.shape[0]
+        bus = self.grid_data["bus"]
+        baseMVA = self.grid_data["baseMVA"]
+        branch = self.grid_data["branch"]
+        pcc = self.grid_data["pcc"]
+        nb = self.grid_data["nb"]
+        ng = self.grid_data["ng"]
+        nbr = self.grid_data["nbr"]
+        c = self.num_pv
 
         # New version
         # calculate incidence matrix
@@ -52,24 +51,17 @@ class algorithms:
         XX = np.delete(XX, nb, axis=0)
         XX = np.delete(XX, nb, axis=1)
 
-        Xgg = XX#np.delete(XX, 0, axis=0)
-        Xgg = XX#np.delete(Xgg, 0, axis=1)
+        Xgg = XX
+        Xgg = XX
 
         bus_i = []
         for j in range(nb):
             bus_i.append(bus[j][BUS_I])
 
         diff = list(set(bus_i)-set(c))
-        # print(diff)
+        diff = [int(i) for i in diff]
 
         Xgg = np.delete(Xgg, diff, axis=0)
         Xgg = np.delete(Xgg, diff, axis=1)
 
-        # print(Xgg)
-
-        G = np.linalg.inv((np.matrix(np.imag(Xgg))))
-        # print("G",(G))
-
-        return G, Xgg
-
-    
+        return np.matrix(np.real(Xgg)), np.matrix(np.imag(Xgg))
