@@ -66,7 +66,7 @@ class additional():
         k = 0
         if any(x =="active_power" for x in self.conf_dict["CONTROL_DATA"]["control_variables"]["ESS"]):
             for ess in self.active_ESS:
-                active_power_ESS_dict['node_'+str(int(pv)+1)] = output["ESS"]["active_power"][k]
+                active_power_ESS_dict['node_'+str(int(ess)+1)] = output["ESS"]["active_power"][k]
                 k+=1
 
         return reactive_power_dict, active_power_dict, active_power_ESS_dict

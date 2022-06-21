@@ -38,13 +38,13 @@ class Quadratic_Control():
 
         # Set the parameters
         # ========================================================================
-        self.K1 = 1.4
+        self.K1 = 1.0
         for i in range(int(len(self.num_pv))):
             self.alpha[i] = self.K1*self.lim
             self.alpha_PV[i] = self.K1*self.lim
-        self.K2 = 1.4
+        self.K2 = 1.0
         for i in range(int(len(self.num_ESS))):
-            self.alpha_ESS[i] = self.K2*self.lim
+            self.alpha_ESS[i] = self.K2*self.lim2
 
         R = np.real(Z)
         X = np.imag(Z)
@@ -53,7 +53,7 @@ class Quadratic_Control():
         
         return X,R, output
     
-    def control_(self, PV_list, output, R, X, active_nodes, v_gen, v_ess, VMAX):
+    def control_(self, PV_list, output, R, X, v_gen, v_ess, VMIN,VMAX):
         ############# RUN QUADRATIC VOLTAGE CONTROL ###############################################
         # By changing the ration alpha/alpha_p we can control if we want use
         # more the PV or the batteries for the regulation (for example depending on the SOC)
@@ -63,15 +63,17 @@ class Quadratic_Control():
         if self.control_data["control_variables"]["DG"]:
             if any(i == "reactive_power" for i in self.control_data["control_variables"]["DG"]):
                 # ==========================================================================================================================================
-                [reactive_power_output, self.mu_min] = self.control_reactive_power.Voltage_Control(PV_list, output["DG"]["reactive_power"], v_gen, self.alpha, VMAX)
+                [reactive_power_output, self.mu_min] = self.control_reactive_power.Voltage_Control(PV_list, output["DG"]["reactive_power"], v_gen, self.alpha, VMIN ,VMAX)
+                output["DG"]["reactive_power"] = reactive_power_output
             else:
-                reactive_power_output = None
+                pass
         
             if any(i == "active_power" for i in self.control_data["control_variables"]["DG"]):
                 # ==========================================================================================================================================
-                active_power_PV_output = self.control_active_power_PV.Voltage_Control(PV_list, output["DG"]["active_power"], v_gen, self.alpha_PV, VMAX)
+                active_power_PV_output = self.control_active_power_PV.Voltage_Control(PV_list, output["DG"]["active_power"], v_gen, self.alpha_PV, VMIN ,VMAX)
+                output["DG"]["active_power"] = active_power_PV_output
             else:
-                active_power_PV_output = None
+                pass
 
             for i in range(len(self.num_pv)):	
                 if i == 0:	
@@ -91,22 +93,20 @@ class Quadratic_Control():
                         self.alpha_PV[i] = 1e-3           	
                 else:	
                     pass
+        else:
+            pass
 
         # CONTROL ESS
         # ================================================================================================
         if self.control_data["control_variables"]["ESS"]:           
             if any(i == "active_power" for i in self.control_data["control_variables"]["ESS"]):          
                 # ==========================================================================================================================================
-                [active_power_battery_output, self.xi_min]  = self.control_active_power_ESS.Voltage_Control(output["ESS"]["active_power"], v_ess, self.alpha_ESS, VMAX)
+                [active_power_battery_output, self.xi_min]  = self.control_active_power_ESS.Voltage_Control(output["ESS"]["active_power"], v_ess, self.alpha_ESS, VMIN ,VMAX)
+                output["ESS"]["active_power"] = active_power_battery_output
             else:
-                active_power_battery_output = None
-
-        if reactive_power_output:
-            output["DG"]["reactive_power"] = reactive_power_output
-        if active_power_PV_output:
-            output["DG"]["active_power"] = active_power_PV_output
-        if active_power_battery_output:
-            output["ESS"]["active_power"] = active_power_battery_output
+                pass
+        else:
+            pass
 
         return output
 

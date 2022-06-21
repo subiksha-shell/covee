@@ -59,7 +59,6 @@ BUS_TYPE = 1
 # =====================================================================================================
 control = Quadratic_Control.Quadratic_Control(grid_data, active_nodes ,active_ESS, conf_dict["CONTROL_DATA"])
 [R,X,output] = control.initialize_control()
-VMAX = conf_dict["CONTROL_DATA"]["VMAX"]
 save_obj = save_results(voltage_list = [], iterations = [], conf_dict = conf_dict)
 
 # Initialize the powerflow
@@ -83,7 +82,7 @@ for iter in range(int(len(profiles["gen_profile"]))):
 
     ###################### Calculate the control output #####################################
     #########################################################################################
-    output = control.control_(profiles["gen_profile"][iter][active_nodes], output, R, X, active_nodes, v_gen, v_ess, VMAX)
+    output = control.control_(profiles["gen_profile"][iter][active_nodes], output, R, X, v_gen, v_ess, VMIN=conf_dict["CONTROL_DATA"]["VMIN"], VMAX=conf_dict["CONTROL_DATA"]["VMAX"])
 
     # update the dictionaries
     #########################################################################################

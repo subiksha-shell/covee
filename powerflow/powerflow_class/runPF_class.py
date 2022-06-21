@@ -122,8 +122,9 @@ class runPF_class():
             bus[i][PD] = load_profile[i] 
             bus[i][QD] = 0.0
             if self.active_ESS != None and any(bus[i][BUS_I] == float(self.active_ESS[k]) for k in range(len(self.active_ESS))):
-                bus[i][PD] = load_profile[i]-active_power_ess[s]
-                s +=1
+                if active_power_ess[s]:
+                    bus[i][PD] = load_profile[i]-active_power_ess[s]
+                    s +=1
         r = 0
         for j in range(int(ng)):
             gen[j][PG] = 0.0
