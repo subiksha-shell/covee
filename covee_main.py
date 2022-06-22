@@ -2,7 +2,6 @@ import numpy as np
 import os
 import coloredlogs, logging, threading
 import time
-import sys
 import json
 from pypower.api import *
 from pypower.ext2int import ext2int
@@ -10,7 +9,9 @@ import control_strategies.utils as utils
 from importlib import import_module
 from powerflow.powerflow_class.runPF_class import runPF_class
 from csv_files.save_results import save_results
+from alive_progress import alive_bar
 
+'''
 coloredlogs.install(level='DEBUG',
 fmt='%(asctime)s %(levelname)-8s %(name)s[%(process)d] %(message)s',
 field_styles=dict(
@@ -19,8 +20,6 @@ field_styles=dict(
     levelname=dict(color='white', bold=True),
     programname=dict(color='cyan'),
     name=dict(color='blue')))
-
-'''
 '''
 logging.info("Program Start")
 
@@ -74,34 +73,42 @@ active_power_ESS_dict = {}
 ############################################ RUN ########################################################
 #########################################################################################################
 '''
-for iter in range(int(len(profiles["gen_profile"]))):
+with alive_bar(int(len(profiles["gen_profile"]))) as bar:  # declare your expected total
+    for iter in range(int(len(profiles["gen_profile"]))):
 
-    ################################# Run the PowerFlow #####################################
-    #########################################################################################
-    [v_tot,v_gen,p,c,p_load,v_pv,v_ess] = run_PF.run_Power_Flow(ppc,output["DG"]["active_power"],output["DG"]["reactive_power"],output["ESS"]["active_power"],profiles["gen_profile"][iter],profiles["load_profile"][iter])
+        ################################# Run the PowerFlow #####################################
+        #########################################################################################
+        [v_tot,v_gen,p,c,p_load,v_pv,v_ess] = run_PF.run_Power_Flow(ppc,output["DG"]["active_power"],output["DG"]["reactive_power"],output["ESS"]["active_power"],profiles["gen_profile"][iter],profiles["load_profile"][iter])
 
-    ###################### Calculate the control output #####################################
-    #########################################################################################
-    output = control.control_(profiles["gen_profile"][iter][active_nodes], output, R, X, v_gen, v_ess, VMIN=conf_dict["CONTROL_DATA"]["VMIN"], VMAX=conf_dict["CONTROL_DATA"]["VMAX"])
+        
+        ###################### Calculate the control output #####################################
+        #########################################################################################
+        output = control.control_(profiles["gen_profile"][iter][active_nodes], output, R, X, v_gen, v_ess, VMIN=conf_dict["CONTROL_DATA"]["VMIN"], VMAX=conf_dict["CONTROL_DATA"]["VMAX"], iter=iter)
 
-    # update the dictionaries
-    #########################################################################################
-    [reactive_power_dict, active_power_dict, active_power_ESS_dict] = additional.update_dict(output, reactive_power_dict, active_power_dict, active_power_ESS_dict)      
-    save_obj.save_list(output, v_tot, iter)
+        # update the dictionaries
+        #########################################################################################
+        [reactive_power_dict, active_power_dict, active_power_ESS_dict] = additional.update_dict(output, reactive_power_dict, active_power_dict, active_power_ESS_dict)      
+        save_obj.save_list(output, v_tot, iter)
 
-    print("voltage ", v_tot)
-    print("pv_input ", profiles["gen_profile"][iter][active_nodes])
-    print("reactive_power_dict ", reactive_power_dict)
+        print("voltage ", v_tot)
+        print("pv_input ", profiles["gen_profile"][iter][active_nodes])
+        print("reactive_power_dict ", reactive_power_dict)
+        
+        bar()
 
-# Save the data in csv files
-# =====================================================================================================
-save_obj.save_csv()
-# Plot function
-# =====================================================================================================
-save_obj.Plot("voltage")
-for i in conf_dict["CONTROL_DATA"]["control_variables"]["DG"]:
-    save_obj.Plot(i+'_DG')
-for i in conf_dict["CONTROL_DATA"]["control_variables"]["ESS"]:
-    save_obj.Plot(i+"_ESS")
+    # Save the data in csv files
+    # =====================================================================================================
+    save_obj.save_csv()
+    # Plot function
+    # =====================================================================================================
+    save_obj.Plot("voltage", {"VMAX" : conf_dict["CONTROL_DATA"]["VMAX"],
+                        "VMIN" : conf_dict["CONTROL_DATA"]["VMIN"]})
+    for i in conf_dict["CONTROL_DATA"]["control_variables"]["DG"]:
+        save_obj.Plot(i+'_DG', None)
+    for i in conf_dict["CONTROL_DATA"]["control_variables"]["ESS"]:
+        save_obj.Plot(i+"_ESS", None)
 
-logging.info('simulation finished')
+    logging.info('simulation finished')
+
+
+          

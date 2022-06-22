@@ -9,8 +9,7 @@ requiredPackages = [#should only contain third party pakages
     "ipython",
     "requests",
     "paho-mqtt",
-    "cvxopt",
-    "python-dotenv",
+    "alive-progress",
     "osqp",
     "cvxpy"
 ],
@@ -18,7 +17,8 @@ requiredPackages = [#should only contain third party pakages
 setup(
     name="covee control",
     version="0.1",
-    author="Edoardo De Din (RWTH Aachen University)",
-    author_email="ededin@eonerc.rwth-aachen.de",
+    author="Edoardo De Din",
+    author_email="acs-software@eonerc.rwth-aachen.de",
+    packages=['covee'],
     install_requires = requiredPackages
 )

@@ -53,7 +53,7 @@ class Quadratic_Control():
         
         return X,R, output
     
-    def control_(self, PV_list, output, R, X, v_gen, v_ess, VMIN,VMAX):
+    def control_(self, PV_list, output, R, X, v_gen, v_ess, VMIN,VMAX, iter):
         ############# RUN QUADRATIC VOLTAGE CONTROL ###############################################
         # By changing the ration alpha/alpha_p we can control if we want use
         # more the PV or the batteries for the regulation (for example depending on the SOC)
