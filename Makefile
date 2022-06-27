@@ -1,11 +1,14 @@
 SHELL := /bin/bash
 
 init:
-	python3 ./setup/createEnv.py -y
-	source covee/bin/activate -y && \
-	pip install --upgrade pip && \
-	pip install -r ./setup/requirements.txt
+	python3 ./create_env/createEnv.py -y
+	source covee_env/bin/activate -y && \
+	pip install --upgrade pip
+	pip install .
 clean:
-	sudo rm -R -f covee
+	sudo rm -R -f covee_env
 	rm -R -f __pycache__
+	rm -R -f covee_env.egg-info
 	rm -R -f covee.egg-info
+	rm -R -f dist
+	rm -R -f build

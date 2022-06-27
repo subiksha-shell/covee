@@ -5,7 +5,7 @@ from pypower.idx_bus import BUS_I,BUS_TYPE, REF, PD, QD, VM, VA, VMAX, VMIN, NON
 from pypower.idx_gen import GEN_BUS, PG, QG, PMAX, PMIN, QMAX, QMIN, VG, GEN_STATUS
 from pypower.int2ext import int2ext
 
-from powerflow.powerflow_class.csv_files.read_profiles import read_profiles
+from covee.powerflow.csv_files.read_profiles import read_profiles
 
 from scipy.sparse import issparse, vstack, hstack, csr_matrix as sparse
 from numpy import flatnonzero as find
@@ -13,7 +13,7 @@ from numpy import flatnonzero as find
 import numpy as np
 from pypower.ppoption import ppoption
 
-from powerflow.powerflow_class.csv_files.read_profiles import read_profiles
+from covee.powerflow.csv_files.read_profiles import read_profiles
 
 
 

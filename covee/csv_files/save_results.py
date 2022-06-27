@@ -74,7 +74,7 @@ class save_results:
             csv_file.close()            
 
 
-    def Plot(self,variable):
+    def Plot(self,variable, lim):
         t = {}
         x_dict = {}
 
@@ -95,9 +95,12 @@ class save_results:
 
         plt.figure()
         for r in range(lenght):
-            plt.plot( x_dict["node_" + str(r)][0:min_leght],linewidth=2, marker="*", c = "dimgray")
-        plt.plot(x_dict["node_" + str(r-1)][0:min_leght],linewidth=2, marker="*", c = "dimgray", label=str(variable))
-        plt.plot(x_dict["node_" + str(r)][0:min_leght],linewidth=2, marker="*", c = "indigo", label=str(variable)+" ["+str(r+1)+"]")
+            plt.plot( x_dict["node_" + str(r)][0:min_leght],linewidth=2,  c = "dimgray")
+        plt.plot(x_dict["node_" + str(r-1)][0:min_leght],linewidth=2,  c = "dimgray", label=str(variable))
+        plt.plot(x_dict["node_" + str(r)][0:min_leght],linewidth=2,  c = "indigo", label=str(variable)+" ["+str(r+1)+"]")
+        if lim != None:
+            for key in lim.keys():
+                plt.plot( np.array([lim[key]]*min_leght),c = "khaki",linewidth=8, label = key)
         axes = plt.gca()
         # axes.set_ylim([0.85, 1.1])
         plt.xlabel("Iterations")

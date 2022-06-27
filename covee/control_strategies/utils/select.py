@@ -3,6 +3,7 @@ import sys
 from importlib import import_module
 import coloredlogs, logging, threading
 
+
 class select():
 
     def __init__(self, conf_dict):
@@ -12,7 +13,7 @@ class select():
 
     def select_control(self):
                       
-        self.control_module = 'control_strategies.'+self.conf_dict["CONTROL_MODULE"]
+        self.control_module = 'covee.control_strategies.'+self.conf_dict["CONTROL_MODULE"]
         try: 
             module = import_module(self.control_module)
         except:
@@ -23,7 +24,7 @@ class select():
 
     def select_case(self):
 
-        self.case_module = 'cases.'+self.conf_dict["CASE_MODULE"]
+        self.case_module = 'covee.cases.'+self.conf_dict["CASE_MODULE"]
         try: 
             module = import_module(self.case_module)
         except:

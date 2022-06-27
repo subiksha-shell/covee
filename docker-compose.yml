@@ -5,19 +5,9 @@ services:
     build:
       context: '.'
       dockerfile: './Dockerfile'
-    networks: 
-      - edgeflex-network
     volumes:
-      - .:/centralized
-    command: bash -c "cd centralized && 
-                      make init &&
-                      cd .. &&
-                      /covee/covee/bin/python3 /covee/Control_main.py --ext_port 7071"
-    # command:          tail -F dfsdfödslk
+      - ./:/covee
+    stdin_open: true
+    # command: tail -F dgrthetyj
     ports:
       - 7071:8000
-
-networks:
-  edgeflex-network:
-    external:
-      name: edgeflex-network

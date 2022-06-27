@@ -35,7 +35,7 @@ class additional():
                         full[t-1] = 0
                 output["ESS"][k]=full
 
-        pv_input_full = np.zeros_like(full_nodes)
+        pv_input_full = np.zeros(len(full_nodes))
         k = 0
         for i in range(len(full_nodes)):
             if any(b == full_nodes[i] for b in active_nodes):
