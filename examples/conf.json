@@ -27,6 +27,6 @@
 
     "STATE_ESTIMATION": "no", "__comment__": "with yes, the control algorithm considers the full set of voltage nodes, as if the state estimation would be integrated / Not implemented yet" ,
 
-    "SAVE_PATH" : "csv_files/results",
-    "PLOT_PATH": "csv_files/plots"
+    "SAVE_PATH" : "covee/csv_files/results",
+    "PLOT_PATH": "covee/csv_files/plots"
 }

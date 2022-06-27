@@ -41,9 +41,9 @@ class read_profiles:
             # =============================================================
 
             cwd = os.getcwd()
-            wd = os.path.join(cwd, 'powerflow/powerflow_class/data/profiles/Test')
+            wd = os.path.join(cwd, 'covee/powerflow/data/profiles/Test')
             wd.replace("\\", "/")
-            wd1 = os.path.join(cwd, 'powerflow/powerflow_class/csv_files/profiles')
+            wd1 = os.path.join(cwd, 'covee/powerflow/csv_files/profiles')
             wd1.replace("\\", "/")        
             k = 1
             for key in profiles:

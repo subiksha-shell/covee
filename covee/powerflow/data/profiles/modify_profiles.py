@@ -3,7 +3,7 @@ import csv
 import os
 
 cwd = os.getcwd()
-wd = os.path.join(cwd, 'covee/powerflow/powerflow_class/data/profiles')
+wd = os.path.join(cwd, 'covee/powerflow/data/profiles')
 
 csv_file = '/Test/PV_profile.csv'
 profile = wd + csv_file

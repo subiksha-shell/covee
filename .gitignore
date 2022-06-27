@@ -20,6 +20,8 @@ csv_files/plots/
 powerflow/powerflow
 venv_ext
 covee_env
+dist
+build
 *.csv
 *.eps
 *.png

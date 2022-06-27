@@ -1,4 +1,4 @@
-import control_strategies.quadratic_control_dualascent as quadratic_control
+import covee.control_strategies.quadratic_control_dualascent as quadratic_control
 import numpy as np
 
 class Quadratic_Control():

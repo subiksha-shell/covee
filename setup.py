@@ -15,7 +15,7 @@ requiredPackages = [#should only contain third party pakages
 ],
 
 setup(
-    name="covee control",
+    name="covee",
     version="0.1",
     author="Edoardo De Din",
     author_email="acs-software@eonerc.rwth-aachen.de",

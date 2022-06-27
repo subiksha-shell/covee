@@ -6,7 +6,7 @@ import cvxpy as cp
 from scipy import sparse
 import coloredlogs, logging, threading
 
-import control_strategies.quadratic_control_cvxpy as quadratic_control
+import covee.control_strategies.quadratic_control_cvxpy as quadratic_control
 
 class Quadratic_Control():
 

@@ -3,13 +3,14 @@ import os
 import coloredlogs, logging, threading
 import time
 import json
+from importlib import import_module
+from alive_progress import alive_bar
 from pypower.api import *
 from pypower.ext2int import ext2int
-import control_strategies.utils as utils
-from importlib import import_module
-from powerflow.powerflow_class.runPF_class import runPF_class
-from csv_files.save_results import save_results
-from alive_progress import alive_bar
+import covee.control_strategies.utils as utils
+from covee.powerflow.runPF_class import runPF_class
+from covee.csv_files.save_results import save_results
+
 
 '''
 coloredlogs.install(level='DEBUG',
@@ -25,7 +26,7 @@ logging.info("Program Start")
 
 # Read json file and set Control Strategy and Case 
 # =====================================================================================================
-with open("./conf.json", "r") as f:
+with open("./examples/conf.json", "r") as f:
     conf_dict = json.load(f)
 
 module_obj = utils.select(conf_dict)
