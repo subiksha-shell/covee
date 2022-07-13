@@ -18,25 +18,6 @@ class Quadratic_Control():
         self.control_data = control_data     
 
 
-        self.QMIN = []
-        self.QMAX = []
-        self.PMIN = []
-        self.PMAX = []
-
-        # Problem parameters
-        # =============================================================
-        self.V_MIN = 0.95  # undervoltage limit
-        self.V_MAX = 1.05  # overvoltage limit
-        self.V_NOM = 1.00  # nominal voltage
-
-        # DEFINE LIM
-        # =============================================================
-        for i in range(int(len(self.num_pv))):
-            self.QMIN.append(-0.8)
-            self.QMAX.append(0.8)
-            self.PMIN.append(-3.0)
-            self.PMAX.append(+3.0)
-
     def initialize_control(self): 
 
         self.num_pv = list(np.array(self.num_pv))
@@ -44,14 +25,13 @@ class Quadratic_Control():
         calculate_matrix_full = quadratic_control.matrix_calc(self.grid_data, self.bus_values) 
         [R,X] = calculate_matrix_full.calculate()
         self.additional = quadratic_control.additional(self.bus_values)
-        self.reactive_power = np.array([0.0]*len(self.num_pv))
+        self.reactive_power_PV = np.array([0.0]*len(self.num_pv))
         self.active_power_PV = np.array([0.0]*len(self.num_pv))
         self.active_power_ESS = np.array([0.0]*len(self.num_ESS))
 
-        # self.P_activate = [1e6]*len(self.bus_values)
+        output = {"DG": {"reactive_power" : self.reactive_power_PV, "active_power": self.active_power_PV}, "ESS": { "active_power": self.active_power_ESS, "SOC": None}}
 
-        output = {"DG": {"reactive_power" : self.reactive_power, "active_power": self.active_power_PV}, "ESS": { "active_power": self.active_power_ESS, "SOC": None}}
-
+        # Recalculate considering only the active nodes
         full_nodes = self.bus_values
         self.active_nodes = self.num_pv
         self.active_nodes_ESS = self.num_ESS
@@ -138,20 +118,25 @@ class Quadratic_Control():
         n = self.n
 
         v_tot = np.zeros(n)
+        k_pv = 0
+        k_ess = 0
         for i in range(len(self.active_tot)):
             if any(x == self.active_tot[i] for x in self.active_nodes):
-                v_tot[i] = v_gen[i]
-            elif any(x == self.active_tot[i] for x in self.active_nodes_ESS):
-                v_tot[i] = v_ess[i]
+                v_tot[i] = v_gen[k_pv]
+                k_pv +=1
+            if any(x == self.active_tot[i] for x in self.active_nodes_ESS):
+                v_tot[i] = v_ess[k_ess]
+                k_ess +=1
             else:
                 pass
 
         # Resize the power vectors to consider the full voltage vector in the equation
         [output_full, pv_input_full] = self.additional.resize_in(self.active_tot, self.active_nodes, self.active_nodes_ESS, output,pvproduction,n, self.control_data)
 
+        ###  LIMITS AND PARAMETERS ###
         k = 0
         var= {}
-        var["ref"] =  {"active_power": np.array([0.0]*n), "voltage": np.array([-0.0]*n)}
+        # var["ref"] =  {"active_power": np.array([0.0]*n), "voltage": np.array([-0.0]*n)}  #Not implemented yet
         var["QMIN"] = np.array([-0.312*pv_input_full[i] for i in range(int(n))])
         var["QMAX"] = np.array([0.312*pv_input_full[i] for i in range(int(n))])
         var["PMIN"] = np.array([-(pv_input_full[i]+1e-6) for i in range(int(n))])
@@ -166,8 +151,8 @@ class Quadratic_Control():
         diff_DG = list(set(self.active_tot)- set(self.active_nodes))
         diff_ESS = list(set(self.active_tot)- set(self.active_nodes_ESS))
 
-        var["VMAX"] = VMAX #* int(n)       # create array of VMAX
-        var["VMIN"] = VMIN #* int(n)       # create array of VMIN    
+        var["VMAX"] = [VMAX] * int(n)       # create array of VMAX
+        var["VMIN"] = [VMIN] * int(n)       # create array of VMIN    
 
         '''
         ########################################################################################################################
@@ -245,13 +230,11 @@ class Quadratic_Control():
 
         # # Calculate the volatge constraints and costs + relaxation     
         M = self.control_data["M"]          
-        cost +=  +np.array([M]*n)@self.rho_vmax[:]+np.array([M]*n)@self.rho_vmin[:]  # voltgage cost + relaxation
+        cost +=  +np.array([M]*n)@self.rho_vmax[:]+np.array([M]*n)@self.rho_vmin[:] # voltgage cost + relaxation
         constr += [                 	
                     self.v[:] <= var["VMAX"]+self.rho_vmax[:],
-                    -self.v[:]<= -(var["VMIN"]-self.rho_vmin[:]),
-                    self.rho_vmax[:]<=1e6,
+                    self.v[:]>= var["VMIN"]-self.rho_vmin[:],
                     self.rho_vmax[:]>=0,
-                    self.rho_vmin[:]<=1e6,
                     self.rho_vmin[:]>=0,
                     ]
         

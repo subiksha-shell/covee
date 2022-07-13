@@ -1,0 +1,11 @@
+coloredlogs
+numpy
+scipy
+PYPOWER
+matplotlib
+ipython
+requests
+paho-mqtt
+alive-progress
+osqp
+cvxpy

@@ -60,6 +60,7 @@ BUS_TYPE = 1
 control = Quadratic_Control.Quadratic_Control(grid_data, active_nodes ,active_ESS, conf_dict["CONTROL_DATA"])
 [R,X,output] = control.initialize_control()
 save_obj = save_results(voltage_list = [], iterations = [], conf_dict = conf_dict)
+internal_iter = 2
 
 # Initialize the powerflow
 # =====================================================================================================
@@ -77,7 +78,8 @@ active_power_ESS_dict = {}
 with alive_bar(int(len(profiles["gen_profile"]))) as bar:  # declare your expected total
     for iter in range(int(len(profiles["gen_profile"]))):
 
-        ################################# Run the PowerFlow #####################################
+        # for iter_2 in range(internal_iter):
+        ################################# Run the PowerFlow (before the control) #####################################
         #########################################################################################
         [v_tot,v_gen,p,c,p_load,v_pv,v_ess] = run_PF.run_Power_Flow(ppc,output["DG"]["active_power"],output["DG"]["reactive_power"],output["ESS"]["active_power"],profiles["gen_profile"][iter],profiles["load_profile"][iter])
 
@@ -85,6 +87,12 @@ with alive_bar(int(len(profiles["gen_profile"]))) as bar:  # declare your expect
         ###################### Calculate the control output #####################################
         #########################################################################################
         output = control.control_(profiles["gen_profile"][iter][active_nodes], output, R, X, v_gen, v_ess, VMIN=conf_dict["CONTROL_DATA"]["VMIN"], VMAX=conf_dict["CONTROL_DATA"]["VMAX"], iter=iter)
+
+
+        ################################# Run the PowerFlow (after the control)#####################################
+        #########################################################################################
+        [v_tot,v_gen,p,c,p_load,v_pv,v_ess] = run_PF.run_Power_Flow(ppc,output["DG"]["active_power"],output["DG"]["reactive_power"],output["ESS"]["active_power"],profiles["gen_profile"][iter],profiles["load_profile"][iter])
+
 
         # update the dictionaries
         #########################################################################################

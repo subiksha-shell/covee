@@ -5,7 +5,7 @@ import os
 cwd = os.getcwd()
 wd = os.path.join(cwd, 'covee/powerflow/data/profiles')
 
-csv_file = '/Test/PV_profile.csv'
+csv_file = '/Test/Load_profile_2.csv'
 profile = wd + csv_file
 
 

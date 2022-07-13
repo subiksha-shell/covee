@@ -17,7 +17,6 @@ csv_files/*.csv
 *.ipynb_checkpoints/
 csv_files/results/
 csv_files/plots/
-powerflow/powerflow
 venv_ext
 covee_env
 dist

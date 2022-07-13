@@ -6,8 +6,8 @@ services:
       context: '.'
       dockerfile: './Dockerfile'
     volumes:
-      - ./:/covee
-    stdin_open: true
-    # command: tail -F dgrthetyj
+      - .:/covee-service
+    command: python3 covee_main.py
+     
     ports:
       - 7071:8000
