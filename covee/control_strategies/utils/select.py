@@ -11,7 +11,7 @@ class select():
         self.control_module = None
         self.case_module = None
 
-    def select_control(self):
+    def select_online_control(self):
                       
         self.control_module = 'covee.control_strategies.'+self.conf_dict["CONTROL_MODULE"]
         try: 
@@ -21,6 +21,18 @@ class select():
             logging.error("Uncorrect definition of the control in conf.json. Please look at the folder control_strategies")
 
         return module
+
+    def select_MPC_control(self):
+                      
+        self.control_module = 'covee.control_strategies.'+self.conf_dict["MPC_MODULE"]
+        try: 
+            module = import_module(self.control_module)
+        except:
+            module = None
+            logging.error("Uncorrect definition of the control in conf.json. Please look at the folder control_strategies")
+
+        return module
+
 
     def select_case(self):
 

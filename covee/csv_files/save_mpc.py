@@ -9,10 +9,9 @@ plt.rcParams["font.family"] = "serif"
 plt.rcParams["figure.figsize"] = (15,7.5)
 plt.rc('legend', fontsize=20, loc='upper right')    # legend fontsize
 
-class save_results:
+class save_mpc:
 
-    def __init__(self, voltage_list, iterations, conf_dict):       
-        self.voltage = voltage_list
+    def __init__(self, iterations, conf_dict):       
         self.lists = {"DG":{ k : [] for k in conf_dict["CONTROL_DATA"]["control_variables"]["DG"]
         },
         "ESS":{
@@ -28,34 +27,27 @@ class save_results:
         self.plot_path= os.path.join(cwd, conf_dict["PLOT_PATH"])
         self.plot_path.replace("\\", "/")
         self.conf_dict =conf_dict
-    
-    def save_list(self, output, voltage, iteration):
+
+    def save_list(self, output_MPC, iteration):
 
         if any(x =="reactive_power" for x in self.conf_dict["CONTROL_DATA"]["control_variables"]["DG"]):
-            self.lists["DG"]["reactive_power"].append(output["DG"]["reactive_power"])
+            self.lists["DG"]["reactive_power"].append(output_MPC["DG"]["reactive_power"][:,1])
         if any(x =="active_power" for x in self.conf_dict["CONTROL_DATA"]["control_variables"]["DG"]):
-            self.lists["DG"]["active_power"].append(output["DG"]["active_power"])
+            self.lists["DG"]["active_power"].append(output_MPC["DG"]["active_power"][:,1])
         if any(x =="active_power" for x in self.conf_dict["CONTROL_DATA"]["control_variables"]["ESS"]):
-            self.lists["ESS"]["active_power"].append(output["ESS"]["active_power"])
-        self.voltage.append(voltage)
+            self.lists["ESS"]["active_power"].append(output_MPC["ESS"]["active_power"][:,1])
         self.iterations.append(iteration)
 
-        self.lists["SOC"].append(output["ESS"]["SOC"])
+        self.lists["SOC"].append(output_MPC["ESS"]["SOC"][:,1])
 
+  
     def save_csv(self):
         cwd = os.getcwd()
         self.wd = os.path.join(cwd, self.save_path)
         self.wd.replace("\\", "/")
 
-        rows = self.voltage
-        with open(os.path.join(self.wd, 'voltage.csv'), 'w+', encoding="ISO-8859-1", newline='') as csv_file:
-            wr = csv.writer(csv_file)
-            for row in rows:
-                wr.writerow(row)
-        csv_file.close()
-
         rows = zip(self.iterations,self.iterations)
-        with open(os.path.join(self.wd, 'time.csv'), 'w+', encoding="ISO-8859-1", newline='') as csv_file:
+        with open(os.path.join(self.wd, 'time_MPC.csv'), 'w+', encoding="ISO-8859-1", newline='') as csv_file:
             wr = csv.writer(csv_file)
             for row in rows:
                 wr.writerow(row)
@@ -63,7 +55,7 @@ class save_results:
 
         for i in self.conf_dict["CONTROL_DATA"]["control_variables"]["DG"]:
             rows = self.lists["DG"][i]
-            with open(os.path.join(self.wd, i+'_DG.csv'), 'w+', encoding="ISO-8859-1", newline='') as csv_file:
+            with open(os.path.join(self.wd, i+'_DG_MPC.csv'), 'w+', encoding="ISO-8859-1", newline='') as csv_file:
                 wr = csv.writer(csv_file)
                 for row in rows:
                     wr.writerow(row)
@@ -71,20 +63,20 @@ class save_results:
 
         for i in self.conf_dict["CONTROL_DATA"]["control_variables"]["ESS"]:
             rows = self.lists["ESS"][i]
-            with open(os.path.join(self.wd, i+'_ESS.csv'), 'w+', encoding="ISO-8859-1", newline='') as csv_file:
+            with open(os.path.join(self.wd, i+'_ESS_MPC.csv'), 'w+', encoding="ISO-8859-1", newline='') as csv_file:
                 wr = csv.writer(csv_file)
                 for row in rows:
                     wr.writerow(row)
             csv_file.close()        
 
         rows = self.lists["SOC"]
-        with open(os.path.join(self.wd, 'SOC.csv'), 'w+', encoding="ISO-8859-1", newline='') as csv_file:
+        with open(os.path.join(self.wd, 'SOC_MPC.csv'), 'w+', encoding="ISO-8859-1", newline='') as csv_file:
             wr = csv.writer(csv_file)
             for row in rows:
                 wr.writerow(row)
-        csv_file.close()            
+        csv_file.close()     
 
-
+    
     def Plot(self,variable, lim):
         t = {}
         x_dict = {}

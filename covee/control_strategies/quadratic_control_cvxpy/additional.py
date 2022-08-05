@@ -29,11 +29,25 @@ class additional():
                 for i in full_nodes:
                     t += 1
                     if any(b == full_nodes[t-1] for b in active_ESS):
-                        full[t-1] = 1.0*np.array(output["DG"][k])[s]
+                        full[t-1] = 1.0*np.array(output["ESS"][k])[s]
                         s += 1
                     else:
                         full[t-1] = 0
                 output["ESS"][k]=full
+
+        if bool(control_data["MPC_activate"]):
+            full_soc = np.zeros(len(full_nodes))
+            s = 0
+            t = 0
+            for i in full_nodes:
+                t += 1
+                if any(b == full_nodes[t-1] for b in active_ESS):
+                    full_soc[t-1] = 1.0*np.array(output["ESS"]["SOC"])[s]
+                    s += 1
+                else:
+                    full_soc[t-1] = 0.0
+            output["ESS"]["SOC"]=full_soc
+
 
         pv_input_full = np.zeros(len(full_nodes))
         k = 0
