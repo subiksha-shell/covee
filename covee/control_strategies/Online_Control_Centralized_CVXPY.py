@@ -124,6 +124,7 @@ class Quadratic_Control():
         self.rho_vmin = cp.Variable((self.n))
         # add voltage in the cost
         weights.update({"V": [1] * self.n})
+        self.v_ref = np.array([self.scheduling["scheduler_data"]["v_ref"]]*self.n)
         self.W_V = np.diag(weights["V"])
 
         
@@ -174,13 +175,14 @@ class Quadratic_Control():
         var["VMIN"] = [VMIN] * int(n)       # create array of VMIN  
 
         if bool(self.conf_dict["CONTROL_DATA"]["MPC_activate"]):
-            self.SOC_ref = np.array(output_MPC["ESS"]["SOC"][:,1])
+            
             if any(x =="active_power" for x in self.conf_dict["CONTROL_DATA"]["control_variables"]["DG"]):
                 self.p_DG_ref = np.array(output_MPC["DG"]["active_power"][:,1])
             if any(x =="reactive_power" for x in self.conf_dict["CONTROL_DATA"]["control_variables"]["DG"]):
                 self.q_DG_ref = np.array(output_MPC["DG"]["reactive_power"][:,1])
             if any(x =="active_power" for x in self.conf_dict["CONTROL_DATA"]["control_variables"]["ESS"]):
                 self.p_ESS_ref = np.array(output_MPC["ESS"]["active_power"][:,1])
+                self.SOC_ref = np.array(output_MPC["ESS"]["SOC"][:,1])
 
         '''
         ########################################################################################################################
@@ -273,11 +275,10 @@ class Quadratic_Control():
         
         constr += [self.v[:] == v_N + add_Q_DG + add_P_ESS + add_P_DG ] 
 
-        if self.control_data["v_ref"]!=0.0:
-            v_ref = np.array([self.control_data["v_ref"]]*n)
-            cost+=(1/2)*cp.quad_form(self.v[:]-v_ref, 1000*self.W_V)
-        else:
-            pass
+        # if bool(self.control_data["voltage_reference"]):
+        #     cost+=(1/2)*cp.quad_form(self.v[:]-self.v_ref, 1000*self.W_V)
+        # else:
+        #     pass
 
         if self.control_data["online_activate"]:
             # solve the problem

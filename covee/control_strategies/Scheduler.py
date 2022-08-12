@@ -20,7 +20,7 @@ class Scheduler():
 
         scheduler_data.update({"Steps" : int(scheduler_data["Hs"]/scheduler_data["Tc"]) }) # Number of steps for the objective function
         scheduler_data.update({"P_DG_iMAX" : [max(forecast['gen_forecast'][i,:]) for i in range(scheduler_data["Steps"])] })   # For the calculation of the weights according to the range of power
-        scheduler_data.update({"P_DG_MAX" : 0.5*np.array([forecast['gen_forecast'][i,:] for i in range(scheduler_data["Steps"])]), "P_DG_MIN" : 0.0*np.array([forecast['gen_forecast'][i,:] for i in range(scheduler_data["Steps"])])})   # P DG Power Limits
+        scheduler_data.update({"P_DG_MAX" : 1.0*np.array([forecast['gen_forecast'][i,:] for i in range(scheduler_data["Steps"])]), "P_DG_MIN" : 0.0*np.array([forecast['gen_forecast'][i,:] for i in range(scheduler_data["Steps"])])})   # P DG Power Limits
         scheduler_data.update({"Q_DG_MAX" : 0.4*scheduler_data["P_DG_MAX"] , "Q_DG_MIN" : -0.4*scheduler_data["P_DG_MAX"]})   # Q DG Power Limits
         scheduler_data.update({"P_ESS_MAX" :  np.array(scheduler_data["P_ESS_MAX"]*len(self.active_ESS)), "P_ESS_MIN" : np.array(scheduler_data["P_ESS_MIN"]*len(self.active_ESS))})   # P ESS Power Limits
         scheduler_data.update({"load_forecast" : np.array([forecast['load_forecast'][i,:] for i in range(scheduler_data["Steps"])])})
@@ -189,7 +189,11 @@ class Scheduler():
             else:
                 add_P_ESS = np.array([0.0]*n_tot) 
             # Calculate the volatge constraints and costs + relaxation               
-            cost +=  +np.array([M]*n_tot)@rho_vmax[:,t+1]+np.array([M]*n_tot)@rho_vmin[:,t+1]+(1/2)*cp.quad_form(v[:,t+1]-v_ref, 100*W_V)  # voltgage cost + relaxation
+            cost +=  +np.array([M]*n_tot)@rho_vmax[:,t+1]+np.array([M]*n_tot)@rho_vmin[:,t+1]  # voltgage cost + relaxation
+            if bool(self.scheduler_data["voltage_reference"]):
+                cost += (1/2)*cp.quad_form(v[:,t+1]-v_ref, 100*W_V)
+            else:
+                pass
             constr += [ v[:,t+1] <= self.scheduler_data["VMAX"]+rho_vmax[:,t+1],
                         -v[:,t+1]<= -(self.scheduler_data["VMIN"]-rho_vmin[:,t+1]),
                         rho_vmax[:,t+1]<=1e6,
@@ -204,8 +208,8 @@ class Scheduler():
 
         # Constraints outside the loop    
         if self.scheduler_data["control_variables"]["ESS"]:
-            constr += [SOC[:,0] == np.array(self.scheduler_data['SOC_init']), SOC[:,t+1] == np.array(self.scheduler_data['SOC_init']) ]
-        constr += [v[:,0]==v_0]
+            constr += [SOC[:,1] == np.array(self.scheduler_data['SOC_init']), SOC[:,t+1] == np.array(self.scheduler_data['SOC_init']) ]
+        constr += [v[:,1]==v_0]
 
         problem = cp.Problem(cp.Minimize(cost), constr)
         problem.solve(verbose=False)

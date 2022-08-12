@@ -110,16 +110,24 @@ with alive_bar(int(len(profiles["gen_profile"]))) as bar:  # declare your expect
        
         ################################# Run the PowerFlow (before the control) #####################################
         ##############################################################################################################
-        [v_tot,v_gen,p,c,p_load,v_pv,v_ess] = run_PF.run_Power_Flow(ppc,output["DG"]["active_power"],output["DG"]["reactive_power"],output["ESS"]["active_power"],profiles["gen_profile"][iter],profiles["load_profile"][iter])
+        [v_tot, v_gen, p, c, p_load, v_pv, v_ess] = run_PF.run_Power_Flow(ppc,output["DG"]["active_power"],output["DG"]["reactive_power"],output["ESS"]["active_power"],profiles["gen_profile"][iter],profiles["load_profile"][iter])
         
         
         ###################### Calculate the control output #####################################
         #########################################################################################
         # MPC
         # =======================
-        if bool(conf_dict["CONTROL_DATA"]["MPC_activate"]) and iter_MPC<(scheduler_data["Hs"]/scheduler_data["Tc"])-conf_dict["CONTROL_DATA"]["MPC_data"]["Steps"]:
+        reference = {"DG": {"active_power": {str(t+1):np.array([-0.0]*len(active_nodes)) for t in range(conf_dict["CONTROL_DATA"]["MPC_data"]["Steps"])},
+                            "reactive_power": {str(t+1):np.array([-0.0]*len(active_nodes)) for t in range(conf_dict["CONTROL_DATA"]["MPC_data"]["Steps"])}
+                            }}
+        
+        if conf_dict["POWERFLOW_DATA"]["TYPE_PROFILE"] == "fix":
+            if iter%conf_dict["CONTROL_DATA"]["MPC_data"]["fix_iterations"] ==0:
+                output_MPC = MPC_Control.control_(profiles, output, R, X, v_gen, v_ess, VMIN=conf_dict["CONTROL_DATA"]["VMIN"], VMAX=conf_dict["CONTROL_DATA"]["VMAX"], iter_MPC = iter_MPC, output_scheduler=output_scheduler, output_MPC=output_MPC, iter = iter, reference = reference)
+                iter_MPC +=1                      
+        elif conf_dict["POWERFLOW_DATA"]["TYPE_PROFILE"] == "variable" and bool(conf_dict["CONTROL_DATA"]["MPC_activate"]) and iter_MPC<(scheduler_data["Hs"]/scheduler_data["Tc"])-conf_dict["CONTROL_DATA"]["MPC_data"]["Steps"]:
             if iter%(len(profiles["gen_profile"])/(scheduler_data["Hs"]/scheduler_data["Tc"]))==0.0:
-                output_MPC = MPC_Control.control_(profiles, output, R, X, v_gen, v_ess, VMIN=conf_dict["CONTROL_DATA"]["VMIN"], VMAX=conf_dict["CONTROL_DATA"]["VMAX"], iter_MPC = iter_MPC, output_scheduler=output_scheduler, output_MPC=output_MPC)
+                output_MPC = MPC_Control.control_(profiles, output, R, X, v_gen, v_ess, VMIN=conf_dict["CONTROL_DATA"]["VMIN"], VMAX=conf_dict["CONTROL_DATA"]["VMAX"], iter_MPC = iter_MPC, output_scheduler=output_scheduler, output_MPC=output_MPC, iter=iter, reference = reference)
                 iter_MPC +=1
         else:
             pass
@@ -140,9 +148,6 @@ with alive_bar(int(len(profiles["gen_profile"]))) as bar:  # declare your expect
         if bool(conf_dict["CONTROL_DATA"]["MPC_activate"]):
             save_mpc_obj.save_list(output_MPC,iter)
 
-        print("voltage ", v_tot)
-        print("pv_input ", profiles["gen_profile"][iter][active_nodes])
-        print("reactive_power_dict ", reactive_power_dict)
         
         bar()
 
@@ -154,7 +159,7 @@ with alive_bar(int(len(profiles["gen_profile"]))) as bar:  # declare your expect
     # Plot function
     # =====================================================================================================
     save_obj.Plot("voltage", {"VMAX" : conf_dict["CONTROL_DATA"]["VMAX"],
-                        "VMIN" : conf_dict["CONTROL_DATA"]["VMIN"]})
+                              "VMIN" : conf_dict["CONTROL_DATA"]["VMIN"]})
     for i in conf_dict["CONTROL_DATA"]["control_variables"]["DG"]:
         save_obj.Plot(i+'_DG', None)
         if bool(conf_dict["CONTROL_DATA"]["MPC_activate"]):

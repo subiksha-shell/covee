@@ -36,9 +36,10 @@ class save_mpc:
             self.lists["DG"]["active_power"].append(output_MPC["DG"]["active_power"][:,1])
         if any(x =="active_power" for x in self.conf_dict["CONTROL_DATA"]["control_variables"]["ESS"]):
             self.lists["ESS"]["active_power"].append(output_MPC["ESS"]["active_power"][:,1])
+            self.lists["SOC"].append(output_MPC["ESS"]["SOC"][:,1])
         self.iterations.append(iteration)
 
-        self.lists["SOC"].append(output_MPC["ESS"]["SOC"][:,1])
+        
 
   
     def save_csv(self):

@@ -28,9 +28,9 @@ class MPC_Control():
         calculate_matrix_full = quadratic_control.matrix_calc(self.grid_data, self.bus_values) 
         [R,X] = calculate_matrix_full.calculate()
         self.additional = quadratic_control.additional(self.bus_values)
-        self.reactive_power_PV = np.array([0.0]*len(self.num_pv))
-        self.active_power_PV = np.array([0.0]*len(self.num_pv))
-        self.active_power_ESS = np.array([0.0]*len(self.num_ESS))
+        self.reactive_power_PV = np.zeros((len(self.num_pv),self.control_data["MPC_data"]["Steps"]))#np.array([0.0]*len(self.num_pv))
+        self.active_power_PV =  np.zeros((len(self.num_pv),self.control_data["MPC_data"]["Steps"]))#np.array([0.0]*len(self.num_pv))
+        self.active_power_ESS =  np.zeros((len(self.num_pv),self.control_data["MPC_data"]["Steps"]))#np.array([0.0]*len(self.num_ESS))
 
         output_MPC = {"DG": {"reactive_power" : self.reactive_power_PV, "active_power": self.active_power_PV}, "ESS": { "active_power": self.active_power_ESS, "SOC": None}}
 
@@ -125,16 +125,19 @@ class MPC_Control():
         weights.update({"V": [self.control_data["MPC_data"]["Weights"]["voltage"]]*self.n})
         self.W_V = np.diag(weights["V"])
 
+        # define the reference values
         self.SOC_ref = {str(t): np.array([0.0]*self.n) for t in range(self.T)}
         self.p_ESS_ref = {str(t): np.array([0.0]*self.n) for t in range(self.T)}
+        self.v_ref = np.array([self.scheduler_data["v_ref"]]*self.n)
+        
         self.ref_iter = 0.0
 
         return output_MPC
 
-    def control_(self, profiles, output, R, X, v_gen, v_ess, VMIN, VMAX, iter_MPC, output_scheduler, output_MPC):
+    def control_(self, profiles, output, R, X, v_gen, v_ess, VMIN, VMAX, iter_MPC, output_scheduler, output_MPC, iter, reference):
         
 
-        pvproduction = profiles["gen_profile"][iter_MPC][self.active_nodes]
+        pvproduction = profiles["gen_profile"][iter][self.active_nodes]
 
         n = self.n
 
@@ -153,30 +156,32 @@ class MPC_Control():
 
         # Resize the power vectors to consider the full voltage vector in the equation
         [output_full, pv_input_full] = self.additional.resize_in(self.active_tot, self.active_nodes, self.active_nodes_ESS, output,pvproduction,n, self.control_data)
+        reference = self.additional.resize_reference(self.control_data, self.active_tot, self.active_nodes, reference, self.T)
 
         ###  LIMITS AND PARAMETERS ###
         k = 0
         var= {}
         for t in range(self.T):
             if t == 0:
-                var["QMIN"] = {str(t): np.array([-0.312*pv_input_full[i] for i in range(int(n))])}
-                var["QMAX"] = {str(t): np.array([0.312*pv_input_full[i] for i in range(int(n))])}
-                var["PMIN"] = {str(t): np.array([-(pv_input_full[i]+1e-6) for i in range(int(n))])}
-                var["PMAX"] = {str(t): np.array([0.0+1e-6 for i in range(int(n))])}
-                var["P_ESS_MIN"] = {str(t): np.array([-0.312 for i in range(int(n))])}
-                var["P_ESS_MAX"] = {str(t): np.array([0.312 for i in range(int(n))])}
-                var["SOC_MIN"] = {str(t): np.array([20.0 for i in range(int(n))])}
-                var["SOC_MAX"] = {str(t): np.array([90.0 for i in range(int(n))])}
-                var["SOC"] = {str(t): np.array(output["ESS"]["SOC"])} # Real measurement for time t=0
+                var["QMIN"] = {str(t+1): np.array([-0.312*pv_input_full[i] for i in range(int(n))])}
+                var["QMAX"] = {str(t+1): np.array([0.312*pv_input_full[i] for i in range(int(n))])}
+                var["PMIN"] = {str(t+1): np.array([-(pv_input_full[i]+1e-6) for i in range(int(n))])}
+                var["PMAX"] = {str(t+1): np.array([0.0+1e-6 for i in range(int(n))])}
+                var["P_ESS_MIN"] = {str(t+1): np.array([-0.312 for i in range(int(n))])}
+                var["P_ESS_MAX"] = {str(t+1): np.array([0.312 for i in range(int(n))])}
+                var["SOC_MIN"] = {str(t+1): np.array([20.0 for i in range(int(n))])}
+                var["SOC_MAX"] = {str(t+1): np.array([90.0 for i in range(int(n))])}
+                var["SOC"] = {str(t+1): np.array(output["ESS"]["SOC"])} # Real measurement for time t=0
+                var["P_MEAS"] = np.array(output["ESS"]["active_power"])
             else:
-                var["QMIN"].update({str(t): -0.312*np.array([self.forecast['gen_forecast'][t+iter_MPC,i] for i in range(int(n))])}) 
-                var["QMAX"].update({str(t): 0.312*np.array([self.forecast['gen_forecast'][t+iter_MPC,i] for i in range(int(n))])})
-                var["PMIN"].update({str(t): np.array([-(self.forecast['gen_forecast'][t+iter_MPC,i]+1e-6) for i in range(int(n))])})
-                var["PMAX"].update({str(t): np.array([0.0+1e-6 for i in range(int(n))])})
-                var["P_ESS_MIN"].update({str(t): np.array([-0.312 for i in range(int(n))])})
-                var["P_ESS_MAX"].update({str(t): np.array([0.312 for i in range(int(n))])})
-                var["SOC_MIN"].update({str(t): np.array([20.0 for i in range(int(n))])})
-                var["SOC_MAX"].update({str(t): np.array([90.0 for i in range(int(n))])})
+                var["QMIN"].update({str(t+1): -0.312*np.array([self.forecast['gen_forecast'][t+iter_MPC,i] for i in range(int(n))])}) 
+                var["QMAX"].update({str(t+1): 0.312*np.array([self.forecast['gen_forecast'][t+iter_MPC,i] for i in range(int(n))])})
+                var["PMIN"].update({str(t+1): np.array([-(self.forecast['gen_forecast'][t+iter_MPC,i]+1e-6) for i in range(int(n))])})
+                var["PMAX"].update({str(t+1): np.array([0.0+1e-6 for i in range(int(n))])})
+                var["P_ESS_MIN"].update({str(t+1): np.array([-0.312 for i in range(int(n))])})
+                var["P_ESS_MAX"].update({str(t+1): np.array([0.312 for i in range(int(n))])})
+                var["SOC_MIN"].update({str(t+1): np.array([20.0 for i in range(int(n))])})
+                var["SOC_MAX"].update({str(t+1): np.array([90.0 for i in range(int(n))])})
 
 
         diff_DG = list(set(self.active_tot)- set(self.active_nodes))
@@ -191,7 +196,8 @@ class MPC_Control():
                 self.p_ESS_ref[str(t)] = np.array(output_scheduler["ESS"]["active_power"][:,int(self.ref_iter)+t])
             self.ref_iter+=1
         
-        self.SOC[:,0].value == np.array(output["ESS"]["SOC"])
+        if any(i == "active_power" for i in self.control_data["control_variables"]["ESS"]):
+            self.SOC[:,0].value == np.array(output["ESS"]["SOC"])
 
         '''
         ########################################################################################################################
@@ -244,7 +250,7 @@ class MPC_Control():
                     constr += [ cp.multiply(self.factor_DG_array,self.p_DG[:,t+1]) <= var["PMAX"][str(t+1)], 
                                 -cp.multiply(self.factor_DG_array,self.p_DG[:,t+1]) <= -var["PMIN"][str(t+1)],
                             ]
-                    cost += (1/2)*cp.quad_form(self.p_DG[:,t+1], self.W_P_DG)
+                    cost += (1/2)*cp.quad_form(self.p_DG[:,t+1]-reference["DG"]["active_power"][str(t+1)], self.W_P_DG)
                     # contribution to voltage regulation
                     add_P_DG = R_tot@self.p_DG[:,t+1]               
                 else:
@@ -260,10 +266,11 @@ class MPC_Control():
                                 -cp.multiply(self.factor_ESS_array,self.p_ESS[:,t+1]) <= -var["P_ESS_MIN"][str(t+1)]
                             ]                   
                     constr += [
-                                self.SOC[:,t+1] <= var["SOC_MAX"][str(t+1)],
+                                self.SOC[:,t+1]<= var["SOC_MAX"][str(t+1)],
                                 -self.SOC[:,t+1] <= -var["SOC_MIN"][str(t+1)],
-                                self.SOC[:,t+1] == self.SOC[:,t] - self.control_data["factor_SOC"]*self.p_ESS[:,t+1] 
+                                self.SOC[:,t+1] == self.SOC[:,t] - self.control_data["factor_SOC"]*self.p_ESS[:,t+1]
                             ]
+                       
                     if bool(self.scheduling["Activate"]):
                         cost += (1/2)*cp.quad_form(self.SOC[:,t+1]-self.SOC_ref[str(t+1)], 10*self.W_SOC)
                     else:
@@ -280,6 +287,10 @@ class MPC_Control():
             # # Calculate the volatge constraints and costs + relaxation     
             M = self.control_data["M"]          
             cost +=  +np.array([M]*n)@self.rho_vmax[:,t+1]+np.array([M]*n)@self.rho_vmin[:,t+1] # voltgage cost + relaxation
+            if bool(self.control_data["voltage_reference"]):
+                cost += (1/2)*cp.quad_form(self.v[:,t+1]-self.v_ref, 1000*self.W_V)
+            else:
+                pass
             constr += [                 	
                         self.v[:,t+1] <= var["VMAX"]+self.rho_vmax[:,t+1],
                         self.v[:,t+1]>= var["VMIN"]-self.rho_vmin[:,t+1],
@@ -289,15 +300,8 @@ class MPC_Control():
             
             constr += [self.v[:,t+1] == v_N[str(t)] + add_Q_DG + add_P_ESS + add_P_DG ] 
 
-            if self.control_data["v_ref"]!=0.0:
-                v_ref = np.array([self.control_data["v_ref"]]*n)
-                cost+=(1/2)*cp.quad_form(self.v[:,t+1]-v_ref, self.W_V)
-            else:
-                pass
-
         ## Constraints outside the loop    
-        print(self.SOC_ref[str(0)])
-        if bool(self.scheduling["Activate"]):
+        if bool(self.scheduling["Activate"]) and any(i == "active_power" for i in self.control_data["control_variables"]["ESS"]):
             constr += [self.SOC[:,0] == self.SOC_ref[str(0)]]#
         constr += [self.v[:,0]==v_N[str(0)]]
 
