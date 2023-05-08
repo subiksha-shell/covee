@@ -11,7 +11,8 @@ requiredPackages = [#should only contain third party pakages
     "paho-mqtt",
     "alive-progress",
     "osqp",
-    "cvxpy"
+    "cvxpy",
+    "dmu @ git+https://git.rwth-aachen.de/acs/public/automation/modules/dmu.git"
 ],
 
 setup(

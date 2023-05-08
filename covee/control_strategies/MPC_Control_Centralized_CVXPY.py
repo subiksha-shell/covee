@@ -30,9 +30,10 @@ class MPC_Control():
         self.additional = quadratic_control.additional(self.bus_values)
         self.reactive_power_PV = np.zeros((len(self.num_pv),self.control_data["MPC_data"]["Steps"]))#np.array([0.0]*len(self.num_pv))
         self.active_power_PV =  np.zeros((len(self.num_pv),self.control_data["MPC_data"]["Steps"]))#np.array([0.0]*len(self.num_pv))
-        self.active_power_ESS =  np.zeros((len(self.num_pv),self.control_data["MPC_data"]["Steps"]))#np.array([0.0]*len(self.num_ESS))
+        self.active_power_ESS =  np.zeros((len(self.num_ESS),self.control_data["MPC_data"]["Steps"]))#np.array([0.0]*len(self.num_ESS))
+        SOC_init = self.scheduler_data["SOC_init"]*np.ones((len(self.num_ESS),self.control_data["MPC_data"]["Steps"]))
 
-        output_MPC = {"DG": {"reactive_power" : self.reactive_power_PV, "active_power": self.active_power_PV}, "ESS": { "active_power": self.active_power_ESS, "SOC": None}}
+        output_MPC = {"DG": {"reactive_power" : self.reactive_power_PV, "active_power": self.active_power_PV}, "ESS": { "active_power": self.active_power_ESS, "SOC": SOC_init}}
 
         # Recalculate considering only the active nodes
         full_nodes = self.bus_values

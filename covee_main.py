@@ -13,9 +13,11 @@ from covee.csv_files.save_mpc import save_mpc
 from covee.control_strategies.Scheduler import Scheduler
 from covee.control_strategies.forecast.read_forecast import read_forecast
 from covee.control_strategies.scheduler.save_schedule import save_schedule
+from dmu.httpSrv import httpSrv
+from dmu.dmu import dmu
+from DT.myDT import myDT
 
 
-'''
 coloredlogs.install(level='DEBUG',
 fmt='%(asctime)s %(levelname)-8s %(name)s[%(process)d] %(message)s',
 field_styles=dict(
@@ -24,7 +26,7 @@ field_styles=dict(
     levelname=dict(color='white', bold=True),
     programname=dict(color='cyan'),
     name=dict(color='blue')))
-'''
+
 logging.info("Program Start")
 
 # Read json file and set Control Strategy and Case 
@@ -76,6 +78,8 @@ active_power_ESS_dict = {}
 # Scheduling
 # =====================================================================================================
 forecast = read_forecast(conf_dict)
+if conf_dict["POWERFLOW_DATA"]["TYPE_PROFILE"] == "fix":
+    forecast.create_constant_forecast(grid_data)
 forecast_profiles = forecast.read_csv()
 scheduler_data = conf_dict["SCHEDULING"]["scheduler_data"]
 scheduler_ = Scheduler(grid_data, conf_dict, forecast_profiles, scheduler_data, R, X)
@@ -100,79 +104,98 @@ else:
     iter_MPC = 0
     output_MPC = None
 
+# Set Grafana interface
+# ========================================================================
+''' start dmu '''
+dmuObj1 = dmu()
+myDT_class = myDT()
+elements = {}
+elements.update({"reactive_power_"+str(grid_data["total_control_nodes"][i]): {"data" : 0, "reactive_power_"+str(grid_data["total_control_nodes"][i]): []} for i in range(1,len(grid_data["total_control_nodes"]))})
+elements.update({"voltage_"+str(grid_data["total_control_nodes"][i]): {"data" : 0, "voltage_"+str(grid_data["total_control_nodes"][i]): []} for i in range(1,len(grid_data["total_control_nodes"]))})
+elements.update({"voltage_MAX": {"data" : 0, "voltage_MAX": []}})
+elements.update({"voltage_PMU_"+str(i): {"data" : 0, "voltage_PMU_"+str(i): []} for i in range(1,3)})
+myDT_class.myDTInit(dmuObj=dmuObj1, elements=elements, port=9090)
+
+
 '''
 #########################################################################################################
 ############################################ RUN ########################################################
 #########################################################################################################
 '''
-with alive_bar(int(len(profiles["gen_profile"]))) as bar:  # declare your expected total
-    for iter in range(int(len(profiles["gen_profile"]))):
-       
-        ################################# Run the PowerFlow (before the control) #####################################
-        ##############################################################################################################
-        [v_tot, v_gen, p, c, p_load, v_pv, v_ess] = run_PF.run_Power_Flow(ppc,output["DG"]["active_power"],output["DG"]["reactive_power"],output["ESS"]["active_power"],profiles["gen_profile"][iter],profiles["load_profile"][iter])
-        
-        
-        ###################### Calculate the control output #####################################
-        #########################################################################################
-        # MPC
-        # =======================
-        reference = {"DG": {"active_power": {str(t+1):np.array([-0.0]*len(active_nodes)) for t in range(conf_dict["CONTROL_DATA"]["MPC_data"]["Steps"])},
-                            "reactive_power": {str(t+1):np.array([-0.0]*len(active_nodes)) for t in range(conf_dict["CONTROL_DATA"]["MPC_data"]["Steps"])}
-                            }}
-        
-        if conf_dict["POWERFLOW_DATA"]["TYPE_PROFILE"] == "fix":
-            if iter%conf_dict["CONTROL_DATA"]["MPC_data"]["fix_iterations"] ==0:
-                output_MPC = MPC_Control.control_(profiles, output, R, X, v_gen, v_ess, VMIN=conf_dict["CONTROL_DATA"]["VMIN"], VMAX=conf_dict["CONTROL_DATA"]["VMAX"], iter_MPC = iter_MPC, output_scheduler=output_scheduler, output_MPC=output_MPC, iter = iter, reference = reference)
-                iter_MPC +=1                      
-        elif conf_dict["POWERFLOW_DATA"]["TYPE_PROFILE"] == "variable" and bool(conf_dict["CONTROL_DATA"]["MPC_activate"]) and iter_MPC<(scheduler_data["Hs"]/scheduler_data["Tc"])-conf_dict["CONTROL_DATA"]["MPC_data"]["Steps"]:
-            if iter%(len(profiles["gen_profile"])/(scheduler_data["Hs"]/scheduler_data["Tc"]))==0.0:
-                output_MPC = MPC_Control.control_(profiles, output, R, X, v_gen, v_ess, VMIN=conf_dict["CONTROL_DATA"]["VMIN"], VMAX=conf_dict["CONTROL_DATA"]["VMAX"], iter_MPC = iter_MPC, output_scheduler=output_scheduler, output_MPC=output_MPC, iter=iter, reference = reference)
-                iter_MPC +=1
-        else:
-            pass
+iter=0
+while True:
 
-        # Online
-        # =======================        
-        output = control.control_(profiles, output, R, X, v_gen, v_ess, VMIN=conf_dict["CONTROL_DATA"]["VMIN"], VMAX=conf_dict["CONTROL_DATA"]["VMAX"], iter=iter, iter_MPC = iter_MPC, output_MPC = output_MPC)
+    
+    ################################# Run the PowerFlow (before the control) #####################################
+    ##############################################################################################################
+    [v_tot, v_gen, p, c, p_load, v_pv, v_ess, losses_tot] = run_PF.run_Power_Flow(ppc,output["DG"]["active_power"],output["DG"]["reactive_power"],output["ESS"]["active_power"],profiles["gen_profile"][iter],profiles["load_profile"][iter])
+    
+    time.sleep(0.1)
+    
+    ###################### Calculate the control output #####################################
+    #########################################################################################
+    # MPC
+    # =======================
+    reference = {"DG": {"active_power": {str(t+1):np.array([-0.0]*len(active_nodes)) for t in range(conf_dict["CONTROL_DATA"]["MPC_data"]["Steps"])},
+                        "reactive_power": {str(t+1):np.array([-0.0]*len(active_nodes)) for t in range(conf_dict["CONTROL_DATA"]["MPC_data"]["Steps"])}
+                        }}
+    
+    if conf_dict["POWERFLOW_DATA"]["TYPE_PROFILE"] == "fix":
+        if iter%conf_dict["CONTROL_DATA"]["MPC_data"]["fix_iterations"] ==0:
+            output_MPC = MPC_Control.control_(profiles, output, R, X, v_gen, v_ess, VMIN=conf_dict["CONTROL_DATA"]["VMIN"], VMAX=conf_dict["CONTROL_DATA"]["VMAX"], iter_MPC = iter_MPC, output_scheduler=output_scheduler, output_MPC=output_MPC, iter = iter, reference = reference)
+            iter_MPC +=1                      
+    elif conf_dict["POWERFLOW_DATA"]["TYPE_PROFILE"] == "variable" and bool(conf_dict["CONTROL_DATA"]["MPC_activate"]) and iter_MPC<(scheduler_data["Hs"]/scheduler_data["Tc"])-conf_dict["CONTROL_DATA"]["MPC_data"]["Steps"]:
+        if iter%(len(profiles["gen_profile"])/(scheduler_data["Hs"]/scheduler_data["Tc"]))==0.0:
+            output_MPC = MPC_Control.control_(profiles, output, R, X, v_gen, v_ess, VMIN=conf_dict["CONTROL_DATA"]["VMIN"], VMAX=conf_dict["CONTROL_DATA"]["VMAX"], iter_MPC = iter_MPC, output_scheduler=output_scheduler, output_MPC=output_MPC, iter=iter, reference = reference)
+            iter_MPC +=1
+    else:
+        pass
 
-        # ################################# Run the PowerFlow (after the control)#####################################
-        #############################################################################################################
-        [v_tot,v_gen,p,c,p_load,v_pv,v_ess] = run_PF.run_Power_Flow(ppc,output["DG"]["active_power"],output["DG"]["reactive_power"],output["ESS"]["active_power"],profiles["gen_profile"][iter],profiles["load_profile"][iter])
+    # Online
+    # =======================        
+    output = control.control_(profiles, output, R, X, v_gen, v_ess, VMIN=conf_dict["CONTROL_DATA"]["VMIN"], VMAX=conf_dict["CONTROL_DATA"]["VMAX"], iter=iter, iter_MPC = iter_MPC, output_MPC = output_MPC)
+
+    # ################################# Run the PowerFlow (after the control)#####################################
+    #############################################################################################################
+    [v_tot,v_gen,p,c,p_load,v_pv,v_ess, losses_tot] = run_PF.run_Power_Flow(ppc,output["DG"]["active_power"],output["DG"]["reactive_power"],output["ESS"]["active_power"],profiles["gen_profile"][iter],profiles["load_profile"][iter])
 
 
-        # update the dictionaries
-        #########################################################################################
-        [reactive_power_dict, active_power_dict, active_power_ESS_dict] = additional.update_dict(output, reactive_power_dict, active_power_dict, active_power_ESS_dict)      
-        save_obj.save_list(output, v_tot, iter)
-        if bool(conf_dict["CONTROL_DATA"]["MPC_activate"]):
-            save_mpc_obj.save_list(output_MPC,iter)
-
-        
-        bar()
-
-    # Save the data in csv files
-    # =====================================================================================================
-    save_obj.save_csv()
+    # update the dictionaries
+    #########################################################################################
+    [reactive_power_dict, active_power_dict, active_power_ESS_dict] = additional.update_dict(output, reactive_power_dict, active_power_dict, active_power_ESS_dict)      
+    save_obj.save_list(output, v_tot, iter)
     if bool(conf_dict["CONTROL_DATA"]["MPC_activate"]):
-        save_mpc_obj.save_csv()
-    # Plot function
-    # =====================================================================================================
-    save_obj.Plot("voltage", {"VMAX" : conf_dict["CONTROL_DATA"]["VMAX"],
-                              "VMIN" : conf_dict["CONTROL_DATA"]["VMIN"]})
-    for i in conf_dict["CONTROL_DATA"]["control_variables"]["DG"]:
-        save_obj.Plot(i+'_DG', None)
-        if bool(conf_dict["CONTROL_DATA"]["MPC_activate"]):
-            save_mpc_obj.Plot(i+'_DG_MPC', None)
-    for i in conf_dict["CONTROL_DATA"]["control_variables"]["ESS"]:
-        save_obj.Plot(i+"_ESS", None)
-        if bool(conf_dict["CONTROL_DATA"]["MPC_activate"]):
-            save_mpc_obj.Plot(i+'_ESS_MPC', None)
-        save_obj.Plot("SOC", None)
-        if bool(conf_dict["CONTROL_DATA"]["MPC_activate"]):
-            save_mpc_obj.Plot('SOC_MPC', None)
+        save_mpc_obj.save_list(output_MPC,iter)
 
-    logging.info('simulation finished')
+
+    for i in range(len(v_gen)):
+        dmuObj1.setDataSubset(v_gen[i]*conf_dict["POWERFLOW_DATA"]["V_base"], "voltage_"+str(grid_data["total_control_nodes"][i]),"data")
+        dmuObj1.setDataSubset(output["DG"]["reactive_power"][i]*conf_dict["POWERFLOW_DATA"]["P_base"], "reactive_power_"+str(grid_data["total_control_nodes"][i]),"data")
+    dmuObj1.setDataSubset(conf_dict["CONTROL_DATA"]["VMAX"]*conf_dict["POWERFLOW_DATA"]["V_base"], "voltage_MAX","data")
+    iter+=1
+
+    # # Save the data in csv files
+    # # =====================================================================================================
+    # save_obj.save_csv()
+    # if bool(conf_dict["CONTROL_DATA"]["MPC_activate"]):
+    #     save_mpc_obj.save_csv()
+    # # Plot function
+    # # =====================================================================================================
+    # save_obj.Plot("voltage", {"VMAX" : conf_dict["CONTROL_DATA"]["VMAX"],
+    #                           "VMIN" : conf_dict["CONTROL_DATA"]["VMIN"]})
+    # for i in conf_dict["CONTROL_DATA"]["control_variables"]["DG"]:
+    #     save_obj.Plot(i+'_DG', None)
+    #     if bool(conf_dict["CONTROL_DATA"]["MPC_activate"]):
+    #         save_mpc_obj.Plot(i+'_DG_MPC', None)
+    # for i in conf_dict["CONTROL_DATA"]["control_variables"]["ESS"]:
+    #     save_obj.Plot(i+"_ESS", None)
+    #     if bool(conf_dict["CONTROL_DATA"]["MPC_activate"]):
+    #         save_mpc_obj.Plot(i+'_ESS_MPC', None)
+    #     save_obj.Plot("SOC", None)
+    #     if bool(conf_dict["CONTROL_DATA"]["MPC_activate"]):
+    #         save_mpc_obj.Plot('SOC_MPC', None)
+
+logging.info('simulation finished')
 
 
           

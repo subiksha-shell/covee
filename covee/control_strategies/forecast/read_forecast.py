@@ -19,6 +19,28 @@ class read_forecast:
         self.conf_dict = conf_dict
         self.profiles_out = {}
 
+    def create_constant_forecast(self, grid_data):
+        pv_forecast = self.conf_dict["POWERFLOW_DATA"]["PROFILE"]["fix"]["GEN_PROFILE"]*np.ones((self.conf_dict["POWERFLOW_DATA"]["PROFILE"]["fix"]["ITERATIONS"],len(grid_data["full_nodes"])))
+        load_forecast =  self.conf_dict["POWERFLOW_DATA"]["PROFILE"]["fix"]["LOAD_PROFILE"]*np.ones((self.conf_dict["POWERFLOW_DATA"]["PROFILE"]["fix"]["ITERATIONS"],len(grid_data["full_nodes"])))
+
+        cwd = os.getcwd()
+        wd = os.path.join(cwd, 'covee/control_strategies/forecast')
+        wd.replace("\\", "/")    
+
+        rows = pv_forecast
+        with open(os.path.join(wd, 'PV_forecast_fix.csv'), 'w+', encoding="ISO-8859-1", newline='') as csv_file:
+            wr = csv.writer(csv_file)
+            for row in rows:
+                wr.writerow(row)
+        csv_file.close()
+
+        rows = load_forecast
+        with open(os.path.join(wd, 'Load_forecast_fix.csv'), 'w+', encoding="ISO-8859-1", newline='') as csv_file:
+            wr = csv.writer(csv_file)
+            for row in rows:
+                wr.writerow(row)
+        csv_file.close()
+
 
     def read_csv(self):
 

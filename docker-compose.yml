@@ -5,9 +5,18 @@ services:
     build:
       context: '.'
       dockerfile: './Dockerfile'
+    networks:
+      - covee-network
     volumes:
-      - .:/covee-service
-    command: python3 covee_main.py
-     
+      - ./:/covee
+      - ../packaging/DT:/covee/DT
+    stdin_open: true
+    command: bash -c "cd covee &&
+                  python3 covee_main.py" 
     ports:
-      - 7071:8000
+      - 9090:9090
+
+networks:
+  covee-network:
+    external:
+      name: covee-network

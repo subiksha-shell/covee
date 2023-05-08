@@ -4,6 +4,7 @@ from pypower.idx_brch import F_BUS, T_BUS, TAP, BR_R, BR_X, BR_B, RATE_A, PF, QF
 from pypower.idx_bus import BUS_I,BUS_TYPE, REF, PD, QD, VM, VA, VMAX, VMIN, NONE
 from pypower.idx_gen import GEN_BUS, PG, QG, PMAX, PMIN, QMAX, QMIN, VG, GEN_STATUS
 from pypower.int2ext import int2ext
+from pypower.makeYbus import makeYbus
 
 from covee.powerflow.csv_files.read_profiles import read_profiles
 
@@ -102,6 +103,9 @@ class runPF_class():
             else:
                 np.delete(ppc["gen"],(i),axis=0)       
 
+        Ybus = makeYbus(baseMVA, bus, branch)[0]
+        Ybus = Ybus.todense()
+        
         #print("Number of Reactive Power Compensator = ",int(len(c)))
                 
         # initialize vectors
@@ -146,6 +150,8 @@ class runPF_class():
         opt = ppoption(VERBOSE=0, OUT_ALL=0, UT_SYS_SUM=0)
         results = runpf(ppc, opt)
         bus_results = results[0]['bus']
+        V_complex = results[0]['bus'][:,VM] * np.exp(1j * np.pi / 180 * results[0]['bus'][:,VA])
+        losses_tot = np.real(np.array([V_complex])*np.conjugate(Ybus)*np.conjugate(np.array([V_complex])).T)**2#np.real(np.array([V_complex]))*np.real(Ybus)*np.real(np.array([V_complex])).T#np.real(np.array([V_complex])*np.conjugate(Ybus)*np.conjugate(np.array([V_complex])).T)
 
         for i in self.total_nodes:
             v_gen.append(bus_results[int(i)][VM])
@@ -161,4 +167,4 @@ class runPF_class():
             p.append(gen[i+1][PG])
             p_load.append(bus[int(c[i])][PD])
         
-        return v_tot,v_gen,p,c,p_load, v_pv, v_ess
+        return v_tot,v_gen,p,c,p_load, v_pv, v_ess, np.array(losses_tot)[0]

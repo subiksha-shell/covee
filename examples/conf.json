@@ -25,9 +25,11 @@
                     },
 
     "POWERFLOW_DATA" : {
-                        "PROFILE" : {"variable" : {"GEN_PROFILE": "PV_profile.csv", "LOAD_PROFILE": "Load_profile.csv"} , 
+                        "PROFILE" : {"variable" : {"GEN_PROFILE": "PV_profile.csv", "LOAD_PROFILE": "Load_profile.csv", "URL": "covee/powerflow/data/profiles/Test"} , 
                                      "fix" : {"GEN_PROFILE": 1.2, "LOAD_PROFILE": 0.2, "ITERATIONS": 100} },
-                        "TYPE_PROFILE" : "variable",  "__comment__": "with fix, the powerflow considers fixed generation and load profiles" 
+                        "TYPE_PROFILE" : "variable",  "__comment__": "with fix, the powerflow considers fixed generation and load profiles",
+                        "V_base" : 20e3,
+                        "P_base" : 10e3
 
                     },
 

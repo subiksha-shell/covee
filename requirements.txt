@@ -9,3 +9,4 @@ paho-mqtt
 alive-progress
 osqp
 cvxpy
+dmu @ git+https://git.rwth-aachen.de/acs/public/automation/modules/dmu.git

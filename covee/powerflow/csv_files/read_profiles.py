@@ -41,7 +41,7 @@ class read_profiles:
             # =============================================================
 
             cwd = os.getcwd()
-            wd = os.path.join(cwd, 'covee/powerflow/data/profiles/Test')
+            wd = os.path.join(cwd, self.conf_dict["POWERFLOW_DATA"]["PROFILE"]["variable"]["URL"])
             wd.replace("\\", "/")
             wd1 = os.path.join(cwd, 'covee/powerflow/csv_files/profiles')
             wd1.replace("\\", "/")        
