@@ -10,6 +10,9 @@ services:
     volumes:
       - ./:/covee
       - ../packaging/DT:/covee/DT
+      - ../profile_data/simulation:/covee/covee/powerflow/data/profiles/Test
+      - ../profile_data/forecast:/covee/covee/control_strategies/forecast
+      
     stdin_open: true
     command: bash -c "cd covee &&
                   python3 covee_main.py" 

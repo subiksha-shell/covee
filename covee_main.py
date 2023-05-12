@@ -111,6 +111,8 @@ dmuObj1 = dmu()
 myDT_class = myDT()
 elements = {}
 elements.update({"reactive_power_"+str(grid_data["total_control_nodes"][i]): {"data" : 0, "reactive_power_"+str(grid_data["total_control_nodes"][i]): []} for i in range(1,len(grid_data["total_control_nodes"]))})
+elements.update({"active_power_ESS_"+str(grid_data["total_control_nodes"][i]): {"data" : 0, "active_power_ESS_"+str(grid_data["total_control_nodes"][i]): []} for i in range(1,len(grid_data["total_control_nodes"]))})
+elements.update({"generation_"+str(grid_data["total_control_nodes"][i]): {"data" : 0, "generation_"+str(grid_data["total_control_nodes"][i]): []} for i in range(1,len(grid_data["total_control_nodes"]))})
 elements.update({"voltage_"+str(grid_data["total_control_nodes"][i]): {"data" : 0, "voltage_"+str(grid_data["total_control_nodes"][i]): []} for i in range(1,len(grid_data["total_control_nodes"]))})
 elements.update({"voltage_MAX": {"data" : 0, "voltage_MAX": []}})
 elements.update({"voltage_PMU_"+str(i): {"data" : 0, "voltage_PMU_"+str(i): []} for i in range(1,3)})
@@ -130,7 +132,7 @@ while True:
     ##############################################################################################################
     [v_tot, v_gen, p, c, p_load, v_pv, v_ess, losses_tot] = run_PF.run_Power_Flow(ppc,output["DG"]["active_power"],output["DG"]["reactive_power"],output["ESS"]["active_power"],profiles["gen_profile"][iter],profiles["load_profile"][iter])
     
-    time.sleep(0.1)
+    time.sleep(0.05)
     
     ###################### Calculate the control output #####################################
     #########################################################################################
@@ -171,8 +173,12 @@ while True:
     for i in range(len(v_gen)):
         dmuObj1.setDataSubset(v_gen[i]*conf_dict["POWERFLOW_DATA"]["V_base"], "voltage_"+str(grid_data["total_control_nodes"][i]),"data")
         dmuObj1.setDataSubset(output["DG"]["reactive_power"][i]*conf_dict["POWERFLOW_DATA"]["P_base"], "reactive_power_"+str(grid_data["total_control_nodes"][i]),"data")
+        dmuObj1.setDataSubset(output["ESS"]["active_power"][i]*conf_dict["POWERFLOW_DATA"]["P_base"], "active_power_ESS_"+str(grid_data["total_control_nodes"][i]),"data")
+        dmuObj1.setDataSubset(profiles["gen_profile"][iter][i]*conf_dict["POWERFLOW_DATA"]["P_base"], "generation_"+str(grid_data["total_control_nodes"][i]),"data")
     dmuObj1.setDataSubset(conf_dict["CONTROL_DATA"]["VMAX"]*conf_dict["POWERFLOW_DATA"]["V_base"], "voltage_MAX","data")
     iter+=1
+    if iter == 2159:
+        iter=0
 
     # # Save the data in csv files
     # # =====================================================================================================

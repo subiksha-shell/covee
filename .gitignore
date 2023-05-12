@@ -21,7 +21,7 @@ venv_ext
 covee_env
 dist
 build
-*.csv
+covee/control_strategies/scheduler/schedule/*.csv
 *.eps
 *.png
 
